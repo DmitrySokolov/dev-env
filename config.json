@@ -1,0 +1,179 @@
+{
+  "main": {
+    "kits": {
+      "default": ["JDK", "Python3", "Conan", "Perl", "PerlModules", "Ninja", "Hg", "HgConfig", "Git", "CmdScripts", "BuildTools2017", "WinSDKComponents", "DirectXSDK"]
+    },
+    "cache_dir": ".cache",
+    "install_dir": "C:\\Dev\\Tools"
+  },
+  "packages": {
+    "JDK": {
+      "description": "Java Development Kit",
+      "version": "1.8.0.201-1",
+      "platform": "x86_64",
+      "url": "https://github.com/ojdkbuild/ojdkbuild/releases/download/1.8.0.201-1/java-1.8.0-openjdk-1.8.0.201-1.b09.ojdkbuild.windows.x86_64.msi",
+      "file_name": "from_url",
+      "install_cmd": "msiexec /i \"$file_path\" INSTALLDIR=\"$install_dir\\Java\" ADDLOCAL=jdk_env_path,jdk_env_java_home /qb",
+      "uninstall_cmd": "msiexec /x \"$file_path\" /qb",
+      "test_cmd": "where.exe javac"
+    },
+    "Python3": {
+      "description": "Python 3",
+      "version": "3.7.2",
+      "platform": "x86_64",
+      "url": "https://www.python.org/ftp/python/3.7.2/python-3.7.2-amd64.exe",
+      "file_name": "from_url",
+      "install_cmd": "& \"$file_path\" /passive InstallAllUsers=1 TargetDir=\"$install_dir\\Python3\" PrependPath=1 CompileAll=1 Include_doc=0 Include_dev=0 Include_tcltk=0 Include_test=0",
+      "uninstall_cmd": "& \"$file_path\" /uninstall /quiet",
+      "test_cmd": "cmd /c \"where.exe py && (py -3 --version | findstr 3.7)\""
+    },
+    "Conan": {
+      "depends_on": ["Python3"],
+      "description": "Conan",
+      "version": "1.x",
+      "platform": "x86_64",
+      "url": "none",
+      "file_name": "none",
+      "install_cmd": "py -3 -m pip install conan pip-autoremove",
+      "uninstall_cmd": "pip-autoremove conan -y",
+      "test_cmd": "where.exe conan"
+    },
+    "Perl": {
+      "description": "Perl",
+      "version": "5.26.3.2603",
+      "platform": "x86_64",
+      "url": "https://downloads.activestate.com/ActivePerl/releases/5.26.3.2603/ActivePerl-5.26.3.2603-MSWin32-x64-a95bce075.exe",
+      "file_name": "from_url",
+      "install_cmd": "& \"$file_path\" /exebasicui /i // APPDIR=\"$install_dir\\Perl\" REMOVE=DOCUMENTATION,EXAMPLES PERL_EXT=No /qb",
+      "uninstall_cmd": "& \"$file_path\" /x // /q",
+      "test_cmd": "where.exe perl"
+    },
+    "PerlModules": {
+      "depends_on": ["PerlModule_XML_DOM", "PerlModule_Try_Tiny"],
+      "description": "Perl modules [meta package]",
+      "version": "none",
+      "platform": "x86_64",
+      "url": "none",
+      "file_name": "none",
+      "install_cmd": "meta_pkg",
+      "uninstall_cmd": "meta_pkg",
+      "test_cmd": "none"
+    },
+    "PerlModule_XML_DOM": {
+      "depends_on": ["Perl"],
+      "description": "Perl module: XML-DOM",
+      "version": "none",
+      "platform": "x86_64",
+      "url": "none",
+      "file_name": "none",
+      "install_cmd": "ppm install XML-DOM",
+      "uninstall_cmd": "ppm remove XML-DOM",
+      "test_cmd": "$e = [int]!($(ppm list --matching XML-DOM --csv --no-header) -ne $null) ; cmd /c exit $e"
+    },
+    "PerlModule_Try_Tiny": {
+      "depends_on": ["Perl"],
+      "description": "Perl module: Try-Tiny",
+      "version": "none",
+      "platform": "x86_64",
+      "url": "none",
+      "file_name": "none",
+      "install_cmd": "ppm install Try-Tiny",
+      "uninstall_cmd": "ppm remove Try-Tiny",
+      "test_cmd": "$e = [int]!($(ppm list --matching Try-Tiny --csv --no-header) -ne $null) ; cmd /c exit $e"
+    },
+    "Ninja": {
+      "description": "Ninja",
+      "version": "1.9",
+      "platform": "x86_64",
+      "url": "https://github.com/ninja-build/ninja/releases/download/v1.9.0/ninja-win.zip",
+      "file_name": "from_url",
+      "install_cmd": "Expand-Archive -Path \"$file_path\" -DestinationPath \"$install_dir\\Ninja\" ; Set-EnvVar Path \"$install_dir\\Ninja\" Machine",
+      "uninstall_cmd": "Remove-Item \"$install_dir\\Ninja\" -Recurse -Force ; Remove-EnvVar Path \"$install_dir\\Ninja\" Machine",
+      "test_cmd": "where.exe ninja"
+    },
+    "Hg": {
+      "description": "Mercurial",
+      "version": "4.8.2",
+      "platform": "x86_64",
+      "url": "https://bitbucket.org/tortoisehg/files/downloads/tortoisehg-4.8.2-x64.msi",
+      "file_name": "from_url",
+      "install_cmd": "msiexec /i \"$file_path\" INSTALLDIR=\"$install_dir\\TortoiseHg\" /qb",
+      "uninstall_cmd": "msiexec /x \"$file_path\" /qb",
+      "test_cmd": "where.exe hg"
+    },
+    "HgConfig": {
+      "depends_on": ["Hg"],
+      "description": "Mercurial config",
+      "version": "none",
+      "platform": "x86_64",
+      "url": "none",
+      "file_name": "none",
+      "install_cmd": "Set-Content -Path '$env:USERPROFILE/mercurial.ini' -Value @\"`n[ui]`nusername = Build Bot <build.bot@intellicad.org>`nmerge = kdiff3`neditor = notepad`n`n[extensions]`nshelve =`nbugzilla =`ncolor =`ntransplant =`nmercurial_keyring =`npurge =`nhistedit =`nrebase =`nstrip =`n`n[patch]`neol = auto`n`n[tortoisehg]`ntabwidth = 4`nui.language = en`nautoresolve = False`n`n[auth]`nicadhgserver.prefix = mercurial.intellicad.org`nicadhgserver.username = build.bot`nicadhgserver.schemes = https`n\"@",
+      "uninstall_cmd": "none",
+      "test_cmd": "$e = [int]!(Test-Path ($env:USERPROFILE+'/mercurial.ini') -Type Leaf) ; cmd /c exit $e"
+    },
+    "Git": {
+      "description": "Git",
+      "version": "2.20.1",
+      "platform": "x86_64",
+      "url": "https://github.com/git-for-windows/git/releases/download/v2.20.1.windows.1/Git-2.20.1-64-bit.exe",
+      "file_name": "from_url",
+      "install_cmd": "Set-Content -Path '$env:Temp/git.ini' -Value @\"`n[Setup]`nLang=default`nDir=\"$install_dir\\Git\"`nGroup=Git`nNoIcons=0`nSetupType=default`nComponents=ext,ext\\shellhere,ext\\guihere,gitlfs,assoc,assoc_sh`nTasks=`nEditorOption=Nano`nCustomEditorPath=`nPathOption=Cmd`nSSHOption=OpenSSH`nCURLOption=WinSSL`nCRLFOption=CRLFAlways`nBashTerminalOption=ConHost`nPerformanceTweaksFSCache=Enabled`nUseCredentialManager=Enabled`nEnableSymlinks=Disabled`n\"@ ; & \"$file_path\" /LOADINF=\"$env:Temp/git.ini\" /SILENT",
+      "uninstall_cmd": "Remove-Item -Path ($env:Temp+'/git.ini') -Force 2>&1 | Out-Null ; & \"$install_dir\\Git\\unins000.exe\" /SILENT",
+      "test_cmd": "where.exe git"
+    },
+    "CmdScripts": {
+      "depends_on": ["Git"],
+      "description": "CMD scripts",
+      "version": "none",
+      "platform": "x86_64",
+      "url": "none",
+      "file_name": "none",
+      "install_cmd": "Set-EnvVar CMD_LIB \"$install_dir\\CmdScripts\\lib\" Machine ; git clone https://github.com/DmitrySokolov/cmd-scripts.git \"$install_dir\\CmdScripts\"",
+      "uninstall_cmd": "Remove-EnvVar CMD_LIB ; Remove-Item -Path \"$install_dir\\CmdScripts\" -Recurse -Force",
+      "test_cmd": "$e = [int]!(Test-EnvVar CMD_LIB isDir) ; cmd /c exit $e"
+    },
+    "BuildTools2017": {
+      "depends_on": ["CmdScripts"],
+      "description": "Build Tools for VS 2017",
+      "version": "none",
+      "platform": "x86_64",
+      "url": "https://download.visualstudio.microsoft.com/download/pr/02dffa51-7828-4905-9dd0-c012c0eca0f3/58cdff8a6914bf2df48cd598ce1c8dad/vs_buildtools.exe",
+      "file_name": "from_url",
+      "install_cmd": "& \"$file_path\" --passive --wait --norestart --nocache --add Microsoft.VisualStudio.Workload.MSBuildTools --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.CMake.Project --add Microsoft.VisualStudio.Component.VC.ATL --add Microsoft.VisualStudio.Component.VC.ATLMFC --add Microsoft.VisualStudio.Component.VC.CLI.Support --add Microsoft.VisualStudio.Component.VC.Modules.x86.x64 --add Microsoft.VisualStudio.Workload.ManagedDesktopBuildTools --add Microsoft.Net.Component.4.7.2.SDK --add Microsoft.Net.Component.4.7.TargetingPack",
+      "uninstall_cmd": "& \"$file_path\" uninstall --passive --wait --norestart --all",
+      "test_cmd": "cmd /c call \"$env:CMD_LIB\\..\\scripts\\findvc.cmd\""
+    },
+    "WinSDKComponents": {
+      "depends_on": ["BuildTools2017"],
+      "description": "Windows SDK Components",
+      "version": "10.0.17763.132",
+      "platform": "x86_64",
+      "url": "none",
+      "file_name": "none",
+      "vars": {
+        "name": "Windows Software Development Kit",
+        "arch": "x64",
+        "reg_key": "HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows Kits\\Installed Roots",
+        "reg_prop": "WindowsDebuggersRoot10"
+      },
+      "install_cmd": "& (Get-Package | ? Name -match '$($pkg.vars.name)' | ? Version -match '$version' ).Metadata['BundleCachePath'] /features OptionId.WindowsDesktopDebuggers /quiet /norestart /ceip off | Out-Default ; Set-EnvVar Path (Join-Path (Get-ItemPropertyValue '$($pkg.vars.reg_key)' -Name '$($pkg.vars.reg_prop)') '$($pkg.vars.arch)') Machine",
+      "uninstall_cmd": "Remove-EnvVar Path (Join-Path (Get-ItemPropertyValue '$($pkg.vars.reg_key)' -Name '$($pkg.vars.reg_prop)') '$($pkg.vars.arch)') Machine ; & (Get-Package | ? Name -match '$($pkg.vars.name)' | ? Version -match '$version' ).Metadata['BundleCachePath'] /uninstall /quiet /norestart",
+      "test_cmd": "$e = [int]!((Get-Item \"$($pkg.vars.reg_key)\").Property -contains \"$($pkg.vars.reg_prop)\") ; cmd /c exit $e"
+    },
+    "DirectXSDK": {
+      "description": "DirectX ",
+      "version": "9.29.1962",
+      "platform": "x86_64",
+      "url": "https://download.microsoft.com/download/A/E/7/AE743F1F-632B-4809-87A9-AA1BB3458E31/DXSDK_Jun10.exe",
+      "file_name": "from_url",
+      "vars": {
+        "dx_dir": "${env:ProgramFiles(x86)}\\Microsoft SDKs\\DirectX SDK (June 2010)",
+        "dx_key": "HKLM:SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Microsoft DirectX SDK (June 2010)"
+      },
+      "install_cmd": "& \"$file_path\" /P \"$($pkg.vars.dx_dir)\" /U | Out-Default ; Set-EnvVar DXSDK_DIR \"$($pkg.vars.dx_dir)\"",
+      "uninstall_cmd": "Remove-EnvVar DXSDK_DIR ; & (Get-ItemPropertyValue '$($pkg.vars.dx_key)' -Name 'UninstallString') /U",
+      "test_cmd": "$e = [int]!(Test-EnvVar DXSDK_DIR isDir) ; cmd /c exit $e"
+    }
+  }
+}
