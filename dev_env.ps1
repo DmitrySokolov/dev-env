@@ -42,6 +42,7 @@
                 ...
             },
             "cache_dir": "dir name"                                         // supports vars substitution
+            "install_dir": "dir name"                                       // supports vars substitution
         },
         "packages": {
             "pkg_ID": {
@@ -60,7 +61,10 @@
         }
     }
 
-    "cache_dir" supports:
+    References in Kits: it possible to include the whole Kit in another Kit by enter a reference:
+        * "default": ["kit:another_kit_name", "pkg_ID1", ...]
+
+    "cache_dir", "install_dir" support:
         * environment variables in format $env:VAR_NAME
 
     "install_cmd", "uninstall_cmd", "test_cmd" support:
@@ -68,6 +72,7 @@
         * $install_dir - the directory name specified in -InstallDir param
         * $file_path - the full path of the package installer
         * $version - the value of the property Version of the current package
+        * $platform - the value of the property Platform of the current package
         * $($pkg.vars.xxx)
 #>
 
@@ -92,6 +97,17 @@ function Select-NonEmpty ($default) {
         if ($s.Length -gt 0) { return $s }
     }
     return $default
+}
+
+function IIf($condition, $if_true, $if_false) {
+    if ($condition -isNot "Boolean") {
+        $_ = $condition
+    }
+    if ($condition) {
+        if ($if_true -is "ScriptBlock") { & $if_true } else { $if_true }
+    } else {
+        if ($if_false -is "ScriptBlock") { & $if_false } else { $if_false }
+    }
 }
 
 function Write-Host_IfVerbosity ($level) {
@@ -162,9 +178,26 @@ function Test-EnvVar {
         'isFile'   { return (Test-Path $v -Type Leaf) }
         'isDir'    { return (Test-Path $v -Type Container) }
         'match'    { return ($v -match $value) }
-        'notmatch' { return ($v -notmatch $value) }
+        'notmatch' { return ($v -notMatch $value) }
     }
     return $true
+}
+
+function Get-PkgName ($kits, $kit_name) {
+    foreach ($name in $kits.$kit_name) {
+        if ($name -match '^kit:(.+)$') {
+            Get-PkgName $kits $Matches[1] | Write-Output
+        } else {
+            $name | Write-Output
+        }
+    }
+}
+
+function Resolve-PkgDependencies ($list, $begin, $process) {
+    if ($list -and $list.Length -gt 0) {
+        Invoke-Command $begin
+        $list | ForEach-Object { Invoke-Command $process }
+    }
 }
 
 function Get-PkgDescription ($pkg) {
@@ -172,38 +205,28 @@ function Get-PkgDescription ($pkg) {
     return $pkg.description
 }
 
-function Update-PkgDependencies ($pkg, $action) {
-    if ($pkg.depends_on.Length -lt 1) { return }
-    $msg = @{   "install/meta:True"     = "-- Installing {0}";
-                "install/meta:False"    = "-- Installing dependencies of {0}";
-                "uninstall/meta:True"   = "-- Uninstalling {0}";
-                "uninstall/meta:False"  = "-- Uninstalling dependencies of {0}"; }
-    $cmd = @{   "install"   = "Install-Pkg";
-                "uninstall" = "Uninstall-Pkg"; }
-    Write-Host ($msg["{0}/meta:{1}" -f $action, ($pkg.install_cmd -eq "meta_pkg")] -f $pkg.description)
-    foreach ($dep_name in $pkg.depends_on) {
-        & $cmd[$action] $dep_name $conf.packages.$dep_name
+function Get-PkgInstaller ($url, $out_file) {
+    if ($url -ne "none") {
+        if (Test-Path $out_file -PathType Leaf) {
+            # Get package from cache
+            Write-Host_IfVerbosity 1 "-- Found" (Split-Path $out_file -Leaf) "in cache"
+        } else {
+            # Download package
+            Write-Host "-- Downloading" $url
+            Invoke-Cmd Invoke-WebRequest $url -OutFile $out_file
+        }
     }
 }
 
 function Invoke-PkgCmd ($pkg, $pkg_cmd, $msg) {
     if ($pkg_cmd -match "meta_pkg|none") { return }
     # Init vars
-    $file_name = $pkg.file_name
-    if ($file_name -eq "from_url") { $file_name = $pkg.url -split "/" | Select-Object -Last 1 }
-    $file_path = Join-Path $cache_dir $file_name
     $version = $pkg.version
+    $platform = $pkg.platform
+    $file_name = IIf ($pkg.file_name -eq "from_url") {Split-Path $pkg.url -Leaf} $pkg.file_name
+    $file_path = Join-Path $cache_dir $file_name
     # Get package
-    if ($pkg.url -ne "none") {
-        if (Test-Path $file_path -PathType Leaf) {
-            # Get package from cache
-            Write-Host_IfVerbosity 1 "-- Found '$file_name' in cache"
-        } else {
-            # Download package
-            Write-Host ("-- Downloading {0}" -f $pkg.url)
-            Invoke-Cmd Invoke-WebRequest $pkg.url -OutFile $file_path
-        }
-    }
+    Get-PkgInstaller $pkg.url $file_path
     # Invoke command
     Write-Host ($msg -f (Get-PkgDescription $pkg))
     Invoke-Cmd (Expand-String $pkg_cmd)
@@ -222,8 +245,12 @@ function Install-Pkg ($name, $pkg) {
             return
         }
     }
-    # Install requirements
-    Update-PkgDependencies $pkg "install"
+    # Install dependencies
+    Resolve-PkgDependencies $pkg.depends_on -begin {
+        Write-Host ("-- Installing " + (IIf ($pkg.install_cmd -eq "meta_pkg") "" "dependencies of ") + $pkg.description)
+    } -process {
+        Install-Pkg $_ $conf.packages.$_
+    }
     # Install package
     Invoke-PkgCmd $pkg $pkg.install_cmd "-- Installing {0}"
     $installed += $name
@@ -233,7 +260,11 @@ function Uninstall-Pkg ($name, $pkg) {
     # Check if package has been processed
     if ($uninstalled -contains $name) { return }
     # Uninstall requirements
-    Update-PkgDependencies $pkg "uninstall"
+    Resolve-PkgDependencies $pkg.depends_on -begin {
+        Write-Host ("-- Uninstalling " + (IIf ($pkg.install_cmd -eq "meta_pkg") "" "dependencies of ") + $pkg.description)
+    } -process {
+        Uninstall-Pkg $_ $conf.packages.$_
+    }
     # Uninstall package
     Invoke-PkgCmd $pkg $pkg.uninstall_cmd "-- Uninstalling {0}"
     $uninstalled += $name
@@ -258,16 +289,12 @@ try {
     if ($Command -eq "install") {
         # Install packages listed in the kit
         $installed = @()
-        foreach ($name in $conf.main.kits.$Kit) {
-            Install-Pkg $name $conf.packages.$name
-        }
+        Get-PkgName $conf.main.kits $Kit | ForEach-Object { Install-Pkg $_ $conf.packages.$_ }
     }
     elseif ($Command -eq "uninstall") {
         # Uninstall packages listed in the kit
         $uninstalled = @()
-        foreach ($name in $conf.main.kits.$Kit) {
-            Uninstall-Pkg $name $conf.packages.$name
-        }
+        Get-PkgName $conf.main.kits $Kit | ForEach-Object { Uninstall-Pkg $_ $conf.packages.$_ }
     }
     elseif ($Command -eq "update") {
         throw "`nNot implemented."
