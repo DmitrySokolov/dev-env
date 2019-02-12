@@ -1,7 +1,8 @@
 {
   "main": {
     "kits": {
-      "default": ["JDK", "Python3", "Conan", "Perl", "PerlModules", "Ninja", "Hg", "HgConfig", "Git", "CmdScripts", "BuildTools2017", "WinSDKComponents", "DirectXSDK"]
+      "default": ["JDK", "Python3", "Conan", "Perl", "PerlModules", "Ninja", "Hg", "Git", "CmdScripts", "BuildTools2017", "WinSDKComponents", "DirectXSDK", "AndroidSDK", "kit:config"],
+      "config": ["ConanConfig", "HgConfig", "AndroidSDKConfig"]
     },
     "cache_dir": ".cache",
     "install_dir": "C:\\Dev\\Tools"
@@ -30,13 +31,46 @@
     "Conan": {
       "depends_on": ["Python3"],
       "description": "Conan",
-      "version": "1.x",
+      "version": "none",
       "platform": "x86_64",
       "url": "none",
       "file_name": "none",
       "install_cmd": "py -3 -m pip install conan pip-autoremove",
       "uninstall_cmd": "pip-autoremove conan -y",
       "test_cmd": "where.exe conan"
+    },
+    "ConanConfig": {
+      "depends_on": ["ConanConfig_profile", "ConanConfig_remote"],
+      "description": "Conan config [meta package]",
+      "version": "none",
+      "platform": "x86_64",
+      "url": "none",
+      "file_name": "none",
+      "install_cmd": "meta_pkg",
+      "uninstall_cmd": "Remove-Item \"$env:USERPROFILE\\.conan\" -Recurse -Force",
+      "test_cmd": "none"
+    },
+    "ConanConfig_profile": {
+      "depends_on": ["Conan"],
+      "description": "Conan config: profile",
+      "version": "none",
+      "platform": "x86_64",
+      "url": "none",
+      "file_name": "none",
+      "install_cmd": "conan profile new default --detect",
+      "uninstall_cmd": "none",
+      "test_cmd": "conan profile get settings.os default"
+    },
+    "ConanConfig_remote": {
+      "depends_on": ["Conan"],
+      "description": "Conan config: remote",
+      "version": "none",
+      "platform": "x86_64",
+      "url": "none",
+      "file_name": "none",
+      "install_cmd": "conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan",
+      "uninstall_cmd": "none",
+      "test_cmd": "$e = 1 - ((conan remote list) -match '^bincrafters:').Length ; cmd /c exit $e"
     },
     "Perl": {
       "description": "Perl",
@@ -162,7 +196,7 @@
       "test_cmd": "$e = [int]!((Get-Item \"$($pkg.vars.reg_key)\").Property -contains \"$($pkg.vars.reg_prop)\") ; cmd /c exit $e"
     },
     "DirectXSDK": {
-      "description": "DirectX ",
+      "description": "DirectX",
       "version": "9.29.1962",
       "platform": "x86_64",
       "url": "https://download.microsoft.com/download/A/E/7/AE743F1F-632B-4809-87A9-AA1BB3458E31/DXSDK_Jun10.exe",
@@ -174,6 +208,34 @@
       "install_cmd": "& \"$file_path\" /P \"$($pkg.vars.dx_dir)\" /U | Out-Default ; Set-EnvVar DXSDK_DIR \"$($pkg.vars.dx_dir)\"",
       "uninstall_cmd": "Remove-EnvVar DXSDK_DIR ; & (Get-ItemPropertyValue '$($pkg.vars.dx_key)' -Name 'UninstallString') /U",
       "test_cmd": "$e = [int]!(Test-EnvVar DXSDK_DIR isDir) ; cmd /c exit $e"
+    },
+    "AndroidSDK": {
+      "description": "Android SDK",
+      "version": "none",
+      "platform": "x86_64",
+      "url": "https://dl.google.com/android/repository/sdk-tools-windows-4333796.zip",
+      "file_name": "from_url",
+      "vars": {
+        "sdk_dir": "Android\\Sdk"
+      },
+      "install_cmd": "if (!(Test-Path \"$install_dir\\$($pkg.vars.sdk_dir)\\tools\" -Type Container)) { Expand-Archive -Path \"$file_path\" -DestinationPath \"$install_dir\\$($pkg.vars.sdk_dir)\" } ; Write-Output yes | & \"$install_dir\\$($pkg.vars.sdk_dir)\\tools\\bin\\sdkmanager\" \"build-tools;28.0.3\" \"platform-tools\" \"platforms;android-28\" \"tools\" \"ndk-bundle\" --sdk_root=\"$install_dir\\$($pkg.vars.sdk_dir)\" | %{ if (`$_ -match '\\]\\s*(\\d+)%') {Write-Progress 'Installing Android SDK' -Status ('{0}% Complete:' -f `$Matches[1]) -PercentComplete `$Matches[1]} else {`$_} } -End{Write-Progress 'Installing Android SDK' -Completed}",
+      "uninstall_cmd": "& \"$install_dir\\$($pkg.vars.sdk_dir)\\tools\\bin\\sdkmanager\" --uninstall \"build-tools;28.0.3\" \"platform-tools\" \"platforms;android-28\" \"ndk-bundle\" --sdk_root=\"$install_dir\\$($pkg.vars.sdk_dir)\" ; Remove-Item \"$install_dir\\$($pkg.vars.sdk_dir)\" -Recurse -Force",
+      "test_cmd": "$e = [int]!(Test-EnvVar ANDROID_SDK_ROOT isDir) ; cmd /c exit $e"
+    },
+    "AndroidSDKConfig": {
+      "depends_on": ["AndroidSDK"],
+      "description": "Android SDK config",
+      "version": "none",
+      "platform": "x86_64",
+      "url": "none",
+      "file_name": "none",
+      "vars": {
+        "sdk_dir": "Android\\Sdk",
+        "ndk_dir": "Android\\Sdk\\ndk-bundle"
+      },
+      "install_cmd": "Set-EnvVar ANDROID_SDK_ROOT \"$install_dir\\$($pkg.vars.sdk_dir)\" ; Set-EnvVar ANDROID_NDK_ROOT \"$install_dir\\$($pkg.vars.ndk_dir)\" ; Set-EnvVar ANDROID_NDK_HOST \"windows-$platform\"",
+      "uninstall_cmd": "Remove-EnvVar ANDROID_SDK_ROOT ; Remove-EnvVar ANDROID_NDK_ROOT ; Remove-EnvVar ANDROID_NDK_HOST",
+      "test_cmd": "none"
     }
   }
 }
