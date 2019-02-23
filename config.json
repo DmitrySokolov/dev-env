@@ -9,6 +9,7 @@
   },
   "packages": {
     "JDK": {
+      "elevated": "true",
       "description": "Java Development Kit",
       "version": "1.8.0.201-1",
       "platform": "x86_64",
@@ -19,12 +20,13 @@
       "test_cmd": "where.exe javac"
     },
     "Python3": {
+      "elevated": "true",
       "description": "Python 3",
       "version": "3.7.2",
       "platform": "x86_64",
       "url": "https://www.python.org/ftp/python/3.7.2/python-3.7.2-amd64.exe",
       "file_name": "from_url",
-      "install_cmd": "& \"$file_path\" /passive InstallAllUsers=1 TargetDir=\"$install_dir\\Python3\" PrependPath=1 CompileAll=1 Include_doc=0 Include_dev=0 Include_tcltk=0 Include_test=0",
+      "install_cmd": "& \"$file_path\" /passive InstallAllUsers=1 TargetDir=\"$install_dir\\Python3\" PrependPath=1 CompileAll=1 Include_doc=0 Include_dev=0 Include_tcltk=0 Include_test=0 Include_launcher=1 InstallLauncherAllUsers=1",
       "uninstall_cmd": "& \"$file_path\" /uninstall /quiet",
       "test_cmd": "cmd /c \"where.exe py && (py -3 --version | findstr 3.7)\""
     },
@@ -73,6 +75,7 @@
       "test_cmd": "$e = 1 - ((conan remote list) -match '^bincrafters:').Length ; cmd /c exit $e"
     },
     "Perl": {
+      "elevated": "true",
       "description": "Perl",
       "version": "5.26.3.2603",
       "platform": "x86_64",
@@ -116,6 +119,7 @@
       "test_cmd": "$e = [int]!($(ppm list --matching Try-Tiny --csv --no-header) -ne $null) ; cmd /c exit $e"
     },
     "Ninja": {
+      "elevated": "true",
       "description": "Ninja",
       "version": "1.9",
       "platform": "x86_64",
@@ -126,6 +130,7 @@
       "test_cmd": "where.exe ninja"
     },
     "Hg": {
+      "elevated": "true",
       "description": "Mercurial",
       "version": "4.8.2",
       "platform": "x86_64",
@@ -147,6 +152,7 @@
       "test_cmd": "$e = [int]!(Test-Path ($env:USERPROFILE+'/mercurial.ini') -Type Leaf) ; cmd /c exit $e"
     },
     "Git": {
+      "elevated": "true",
       "description": "Git",
       "version": "2.20.1",
       "platform": "x86_64",
@@ -157,6 +163,7 @@
       "test_cmd": "where.exe git"
     },
     "CmdScripts": {
+      "elevated": "true",
       "depends_on": ["Git"],
       "description": "CMD scripts",
       "version": "none",
@@ -168,6 +175,7 @@
       "test_cmd": "$e = [int]!(Test-EnvVar CMD_LIB isDir) ; cmd /c exit $e"
     },
     "BuildTools2017": {
+      "elevated": "true",
       "depends_on": ["CmdScripts"],
       "description": "Build Tools for VS 2017",
       "version": "none",
@@ -179,6 +187,7 @@
       "test_cmd": "cmd /c call \"$env:CMD_LIB\\..\\scripts\\findvc.cmd\""
     },
     "WinSDKComponents": {
+      "elevated": "true",
       "depends_on": ["BuildTools2017"],
       "description": "Windows SDK Components",
       "version": "10.0.17763.132",
@@ -196,6 +205,7 @@
       "test_cmd": "$e = [int]!((Get-Item \"$($pkg.vars.reg_key)\").Property -contains \"$($pkg.vars.reg_prop)\") ; cmd /c exit $e"
     },
     "DirectXSDK": {
+      "elevated": "true",
       "description": "DirectX",
       "version": "9.29.1962",
       "platform": "x86_64",
@@ -210,6 +220,7 @@
       "test_cmd": "$e = [int]!(Test-EnvVar DXSDK_DIR isDir) ; cmd /c exit $e"
     },
     "AndroidSDK": {
+      "elevated": "true",
       "description": "Android SDK",
       "version": "none",
       "platform": "x86_64",
@@ -223,6 +234,7 @@
       "test_cmd": "$e = [int]!(Test-EnvVar ANDROID_SDK_ROOT isDir) ; cmd /c exit $e"
     },
     "AndroidSDKConfig": {
+      "elevated": "true",
       "depends_on": ["AndroidSDK"],
       "description": "Android SDK config",
       "version": "none",
