@@ -227,13 +227,15 @@ function Get-PkgDescription ($pkg) {
     return $pkg.description
 }
 
-function Invoke-PkgCmd ($pkg, $pkg_cmd, $msg) {
+function Invoke-PkgCmd ($pkg, $pkg_cmd, $msg, $test=$null) {
     if ($pkg_cmd -eq "none") { return }
     # Init vars
     $version = $pkg.version
     $platform = $pkg.platform
     $file_name = IIf ($pkg.file_name -eq "from_url") {Split-Path $pkg.url -Leaf} $pkg.file_name
     $file_path = Join-Path $cache_dir $file_name
+    # Run test
+    if ($test -is "ScriptBlock") { if (!(& $test)) {return} }
     # Get package
     Get-PkgInstaller $pkg.url $file_path
     # Invoke command
@@ -243,25 +245,21 @@ function Invoke-PkgCmd ($pkg, $pkg_cmd, $msg) {
 }
 
 function Install-Pkg ($pkg) {
-    # Check if package already installed in OS
-    if ($pkg.test_cmd -ne "none") {
-        # TODO: Fix broken vars substitution for test_cmd (file_path, version, etc. are not defined here yet)
-        $r = Invoke-Test $pkg.test_cmd
-        if ($r -eq $true) {
-            Write-Log $V_NORMAL ("-- Found {0} installed" -f $pkg.description)
-            return
-        }
-    }
-    # Install package
     if ($pkg.install_cmd -eq "meta_pkg") {
         Write-Log $V_NORMAL ("-- Installed {0}" -f (Get-PkgDescription $pkg))
     } else {
-        Invoke-PkgCmd $pkg $pkg.install_cmd "-- Installing {0}"
+        Invoke-PkgCmd $pkg $pkg.install_cmd "-- Installing {0}" -test {
+            # Check if package already installed in OS
+            if ($pkg.test_cmd -ne "none" -and (Invoke-Test (Expand-String $pkg.test_cmd))) {
+                Write-Log $V_NORMAL ("-- Found {0} installed" -f $pkg.description)
+                return $false
+            }
+            return $true
+        }
     }
 }
 
 function Uninstall-Pkg ($pkg) {
-    # Uninstall package
     if ($pkg.uninstall_cmd -eq "meta_pkg") {
         Write-Log $V_NORMAL ("-- Uninstalled {0}" -f (Get-PkgDescription $pkg))
     } else {

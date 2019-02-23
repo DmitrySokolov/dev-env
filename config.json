@@ -21,7 +21,7 @@
     },
     "Python3": {
       "elevated": "true",
-      "description": "Python 3",
+      "description": "Python",
       "version": "3.7.2",
       "platform": "x86_64",
       "url": "https://www.python.org/ftp/python/3.7.2/python-3.7.2-amd64.exe",
