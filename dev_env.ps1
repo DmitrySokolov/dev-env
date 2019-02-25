@@ -1,4 +1,8 @@
 <#
+.SYNOPSIS
+    Manages development environment by installing/uninstalling/updating apps listed in config.json file.
+
+.LINK
     Copyright 2019 Dmitry Sokolov <mr.dmitry.sokolov@gmail.com>
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +18,10 @@
     limitations under the License.
 
 
-.SYNOPSIS
-    Manages development environment by installing/uninstalling/updating apps listed in config.json file.
+.DESCRIPTION
+    Manages development environment. The "config.json" file should contain description of apps to install,
+    their dependencies, and instruction how to detect, install, and uninstall an app.
+    Supported commands are "install", "uninstall, "update".
 
 .PARAMETER Command
     Supported commands: install, uninstall, update
@@ -35,8 +41,10 @@
     Optional, show only expected commands, do not perform them. Default: "$false".
 .PARAMETER V
     Optional, verbosity level. Default: "1".
+.PARAMETER WorkerMode
+    Internal.
 
-.DESCRIPTION
+.NOTES
     The format of the config.json file:
     {
         "main": {
