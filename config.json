@@ -2,10 +2,12 @@
   "main": {
     "kits": {
       "default": ["JDK", "Python3", "Conan", "Perl", "PerlModules", "Ninja", "Hg", "Git", "CmdScripts", "BuildTools2017", "WinSDKComponents", "DirectXSDK", "AndroidSDK", "kit:config"],
-      "config": ["ConanConfig", "HgConfig", "AndroidSDKConfig"]
+      "config": ["ConanConfig", "HgConfig", "GitConfig", "AndroidSDKConfig"]
     },
+    "install_dir": "C:\\Dev\\Tools",
     "cache_dir": ".cache",
-    "install_dir": "C:\\Dev\\Tools"
+    "user_name": "build.bot",
+    "user_info": "Build Bot <build.bot@example.org>"
   },
   "packages": {
     "JDK": {
@@ -147,7 +149,7 @@
       "platform": "x86_64",
       "url": "none",
       "file_name": "none",
-      "install_cmd": "Set-Content -Path '$env:USERPROFILE/mercurial.ini' -Value @\"`n[ui]`nusername = Build Bot <build.bot@intellicad.org>`nmerge = kdiff3`neditor = notepad`n`n[extensions]`nshelve =`nbugzilla =`ncolor =`ntransplant =`nmercurial_keyring =`npurge =`nhistedit =`nrebase =`nstrip =`n`n[patch]`neol = auto`n`n[tortoisehg]`ntabwidth = 4`nui.language = en`nautoresolve = False`n`n[auth]`nicadhgserver.prefix = mercurial.intellicad.org`nicadhgserver.username = build.bot`nicadhgserver.schemes = https`n\"@",
+      "install_cmd": "Set-Content -Path '$env:USERPROFILE/mercurial.ini' -Value @\"`n[ui]`nusername = $user_info`nmerge = kdiff3`neditor = notepad`n`n[extensions]`nshelve =`nbugzilla =`ncolor =`ntransplant =`nmercurial_keyring =`npurge =`nhistedit =`nrebase =`nstrip =`n`n[patch]`neol = auto`n`n[tortoisehg]`ntabwidth = 4`nui.language = en`nautoresolve = False`n`n[auth]`nhgserver.prefix = bitbucket.org`nhgserver.username = $user_name`ndhgserver.schemes = https`n\"@",
       "uninstall_cmd": "none",
       "test_cmd": "$e = [int]!(Test-Path ($env:USERPROFILE+'/mercurial.ini') -Type Leaf) ; cmd /c exit $e"
     },
@@ -161,6 +163,17 @@
       "install_cmd": "Set-Content -Path '$env:Temp/git.ini' -Value @\"`n[Setup]`nLang=default`nDir=\"$install_dir\\Git\"`nGroup=Git`nNoIcons=0`nSetupType=default`nComponents=ext,ext\\shellhere,ext\\guihere,gitlfs,assoc,assoc_sh`nTasks=`nEditorOption=Nano`nCustomEditorPath=`nPathOption=Cmd`nSSHOption=OpenSSH`nCURLOption=WinSSL`nCRLFOption=CRLFAlways`nBashTerminalOption=ConHost`nPerformanceTweaksFSCache=Enabled`nUseCredentialManager=Enabled`nEnableSymlinks=Disabled`n\"@ ; & \"$file_path\" /LOADINF=\"$env:Temp/git.ini\" /SILENT",
       "uninstall_cmd": "Remove-Item -Path ($env:Temp+'/git.ini') -Force 2>&1 | Out-Null ; & \"$install_dir\\Git\\unins000.exe\" /SILENT",
       "test_cmd": "where.exe git"
+    },
+    "GitConfig": {
+      "depends_on": ["Git"],
+      "description": "Git config",
+      "version": "none",
+      "platform": "x86_64",
+      "url": "none",
+      "file_name": "none",
+      "install_cmd": "git config --global user.name \"$user_name\" ; git config --global user.email \"$user_info\"",
+      "uninstall_cmd": "none",
+      "test_cmd": "$e = [int]!(Test-Path ($env:USERPROFILE+'/.gitconfig') -Type Leaf) ; cmd /c exit $e"
     },
     "CmdScripts": {
       "elevated": "true",

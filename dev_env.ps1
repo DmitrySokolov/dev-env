@@ -27,6 +27,10 @@
     Optional, root directory to install apps. Default: "C:\Dev\Tools".
 .PARAMETER CacheDir
     Optional, directory to keep downloaded files. Default: ".cache".
+.PARAMETER UserName
+    Optional, user name ("$user_name" var for "config.json"). Default: "build.bot".
+.PARAMETER UserInfo
+    Optional, user info ("$user_info" var for "config.json"). Default: "Build Bot <build.bot@example.org>".
 .PARAMETER DryRun
     Optional, show only expected commands, do not perform them. Default: "$false".
 .PARAMETER V
@@ -41,8 +45,10 @@
                 "another_kit_name": [list of package IDs],
                 ...
             },
-            "cache_dir": "dir name"                                         // supports vars substitution
-            "install_dir": "dir name"                                       // supports vars substitution
+            "install_dir": "dir name",                                      // supports vars substitution
+            "cache_dir": "dir name",                                        // supports vars substitution
+            "user_name": "user name",                                       // user name for configs
+            "user_info": "additional user info, typically name and e-mail"  // user info for configs
         },
         "packages": {
             "pkg_ID": {
@@ -70,6 +76,8 @@
 
     "install_cmd", "uninstall_cmd", "test_cmd" support:
         * environment variables in format $env:VAR_NAME
+        * $user_name - the user name
+        * $user_info - the user info
         * $install_dir - the directory name specified in -InstallDir param
         * $file_path - the full path of the package installer
         * $version - the value of the property Version of the current package
@@ -84,6 +92,8 @@ param (
     [string] $Kit = 'default',
     [string] $InstallDir = '',
     [string] $CacheDir = '',
+    [string] $UserName = '',
+    [string] $UserInfo = '',
     [switch] $DryRun = $false,
     [int]    $V = 1,
     [switch] $WorkerMode = $false
@@ -92,6 +102,10 @@ param (
 $V_QUIET = 0
 $V_NORMAL = 1
 $V_HIGH = 2
+
+$ps_elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+$ps_args = "-File", $PSCommandPath, $Command, "-Config", $Config, "-Kit", $Kit, "-InstallDir", $install_dir, "-CacheDir", $cache_dir, "-UserName", $UserName, "-UserInfo", $UserInfo, "-DryRun", $DryRun, "-V", $V, "-WorkerMode", "-NonInteractive"
 
 function Expand-String ( [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string] $value ) {
     "@`"`n$value`n`"@" | Invoke-Expression
@@ -346,8 +360,6 @@ function Receive-Output ($pipe_reader) {
     return $cmd, $pkg
 }
 
-$ps_elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-
 function invoke ($cmd, $pkg, $pipe_reader, $pipe_writer) {
     if (-not $pkg.elevated -or $ps_elevated) {
         & $cmd $pkg
@@ -365,6 +377,8 @@ function worker {
         # Init vars required for substitution
         $install_dir = $InstallDir
         $cache_dir = $CacheDir
+        $user_name = $UserName
+        $user_info = $UserInfo
 
         $pipe_client, $pipe_reader, $pipe_writer = Start-NPipeClient
 
@@ -408,8 +422,12 @@ function main {
         # Init vars required for substitution
         $install_dir = Select-NonEmpty $InstallDir (Expand-String $conf.main.install_dir) -default 'C:\Dev\Tools'
         $cache_dir = Select-NonEmpty $CacheDir (Expand-String $conf.main.cache_dir) -default '.cache'
+        $user_name = Select-NonEmpty $UserName (Expand-String $conf.main.user_name) -default 'build.bot'
+        $user_info = Select-NonEmpty $UserInfo (Expand-String $conf.main.user_info) -default 'Build Bot <build.bot@example.or>'
         Write-Log $V_HIGH "-- Install dir: $install_dir"
         Write-Log $V_HIGH "-- Cache dir: $cache_dir"
+        Write-Log $V_HIGH "-- User name: $user_name"
+        Write-Log $V_HIGH "-- User info: $user_info"
 
         # Get ordered package list
         $processed_list = @()
@@ -425,7 +443,6 @@ function main {
         foreach ($name in $ordered_list) {
             if ($conf.packages.$name.elevated -and !$ps_elevated) {
                 Write-Log $V_QUIET "Some packages require Admin privileges to install, trying to elevate privileges..."
-                $ps_args = "-File", $PSCommandPath, $Command, "-Config", $Config, "-Kit", $Kit, "-InstallDir", $install_dir, "-CacheDir", $cache_dir, "-DryRun", $DryRun, "-V", $V, "-WorkerMode", "-NonInteractive"
                 $ps_obj = Start-Process powershell.exe $ps_args -WorkingDirectory $PWD -Verb RunAs -WindowStyle Hidden
                 Start-Sleep -m 500
                 if ($ps_obj.HasExited) { throw "`nError: could not run this script with elevated privileges`n" }
