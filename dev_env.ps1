@@ -28,7 +28,7 @@
 .PARAMETER Config
     Optional, config file_name. Default: ".\config.json".
 .PARAMETER Kit
-    Optional, kit name. Default: "default".
+    Optional, kit name(s). Default: "default".
 .PARAMETER InstallDir
     Optional, root directory to install apps. Default: "C:\Dev\Tools".
 .PARAMETER CacheDir
@@ -97,7 +97,7 @@
 param (
     [string] $Command = '',
     [string] $Config = '.\config.json',
-    [string] $Kit = 'default',
+    [string[]] $Kit = @('default'),
     [string] $InstallDir = '',
     [string] $CacheDir = '',
     [string] $UserName = '',
@@ -110,10 +110,6 @@ param (
 $V_QUIET = 0
 $V_NORMAL = 1
 $V_HIGH = 2
-
-$ps_elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-
-$ps_args = "-File", $PSCommandPath, $Command, "-Config", $Config, "-Kit", $Kit, "-InstallDir", $install_dir, "-CacheDir", $cache_dir, "-UserName", $UserName, "-UserInfo", $UserInfo, "-DryRun", $DryRun, "-V", $V, "-WorkerMode", "-NonInteractive"
 
 function Expand-String ( [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string] $value ) {
     "@`"`n$value`n`"@" | Invoke-Expression
@@ -374,6 +370,8 @@ function Receive-Output ($pipe_reader) {
     return $cmd, $pkg
 }
 
+$ps_elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
 function invoke ($cmd, $pkg, $pipe_reader, $pipe_writer) {
     if (-not $pkg.elevated -or $ps_elevated) {
         & $cmd $pkg
@@ -426,7 +424,7 @@ function main {
         Write-Log $V_NORMAL "Processing packages..."
 
         # Get config file
-        $conf_file = IIf ($Config -match '^http') (download $Config) $Config
+        $conf_file = IIf ($Config -match '^http') {download $Config} $Config
         if (-not (Test-Path $conf_file)) { $conf_file = Join-Path $PSScriptRoot $conf_file }
         if (-not (Test-Path $conf_file)) { throw "ERROR: could not find '$Config', nothing to install." }
 
@@ -446,8 +444,10 @@ function main {
         # Get ordered package list
         $processed_list = @()
         $ordered_list = @()
-        Get-PkgName $conf.main.kits $Kit | ForEach-Object {
-            Get-PkgDependencies $conf.packages.$_ $_ ([ref]$processed_list) ([ref]$ordered_list)
+        foreach ($k in $Kit) {
+            Get-PkgName $conf.main.kits $k | ForEach-Object {
+                Get-PkgDependencies $conf.packages.$_ $_ ([ref]$processed_list) ([ref]$ordered_list)
+            }
         }
 
         # If there are packages that require elevation run elevated PS and setup client-server mode
@@ -457,6 +457,7 @@ function main {
         foreach ($name in $ordered_list) {
             if ($conf.packages.$name.elevated -and !$ps_elevated) {
                 Write-Log $V_QUIET "Some packages require Admin privileges to install, trying to elevate privileges..."
+                $ps_args = "-File", $PSCommandPath, $Command, "-Config", $Config, "-Kit", ("'{0}'" -f ($Kit -join "','")), "-InstallDir", $install_dir, "-CacheDir", $cache_dir, "-UserName", $UserName, "-UserInfo", $UserInfo, "-DryRun", $DryRun, "-V", $V, "-WorkerMode", "-NonInteractive"
                 $ps_obj = Start-Process powershell.exe $ps_args -WorkingDirectory $PWD -Verb RunAs -WindowStyle Hidden
                 Start-Sleep -m 500
                 if ($ps_obj.HasExited) { throw "`nError: could not run this script with elevated privileges`n" }
