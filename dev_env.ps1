@@ -213,6 +213,12 @@ function Test-EnvVar {
     return $true
 }
 
+function download ($url) {
+    $f = Split-Path $url -Leaf
+    Invoke-WebRequest $url -OutFile $f
+    return $f
+}
+
 function Get-PkgName ($kits, $kit_name) {
     foreach ($name in $kits.$kit_name) {
         if ($name -match '^kit:(.+)$') {
@@ -420,7 +426,7 @@ function main {
         Write-Log $V_NORMAL "Processing packages..."
 
         # Get config file
-        $conf_file = $Config
+        $conf_file = IIf ($Config -match '^http') (download $Config) $Config
         if (-not (Test-Path $conf_file)) { $conf_file = Join-Path $PSScriptRoot $conf_file }
         if (-not (Test-Path $conf_file)) { throw "ERROR: could not find '$Config', nothing to install." }
 
