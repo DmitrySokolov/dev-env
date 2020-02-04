@@ -21,7 +21,7 @@
 .DESCRIPTION
     Manages development environment. The "config.json" file should contain description of apps to install,
     their dependencies, and instruction how to detect, install, and uninstall an app.
-    Supported commands are "install", "uninstall, "update".
+    Supported commands are "install", "uninstall", "update".
 
 .PARAMETER Command
     Supported commands: install, uninstall, update

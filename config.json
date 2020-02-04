@@ -1,7 +1,7 @@
 {
   "main": {
     "kits": {
-      "default": ["JDK", "Python3", "Conan", "Perl", "PerlModules", "Ninja", "Hg", "Git", "CmdScripts", "BuildTools2017", "WinSDKComponents", "DirectXSDK", "AndroidSDK", "kit:config"],
+      "default": ["JDK", "Python3", "Conan", "Perl", "PerlModules", "Ninja", "Jom", "Hg", "Git", "CmdScripts", "BuildTools2017", "WinSDKComponents", "DirectXSDK", "AndroidSDK", "kit:config"],
       "config": ["ConanConfig", "HgConfig", "GitConfig", "AndroidSDKConfig"]
     },
     "install_dir": "C:\\Dev\\Tools",
@@ -145,6 +145,18 @@
       "uninstall_cmd": "Remove-Item \"$install_dir\\Ninja\" -Recurse -Force ; Remove-EnvVar Path \"$install_dir\\Ninja\" Machine",
       "test_cmd": "where.exe ninja"
     },
+    "Jom": {
+      "elevated": "true",
+      "depends_on": ["EnvConfig"],
+      "description": "Jom",
+      "version": "1.1.3",
+      "platform": "x86_64",
+      "url": "https://download.qt.io/official_releases/jom/jom.zip",
+      "file_name": "from_url",
+      "install_cmd": "Expand-Archive -Path \"$file_path\" -DestinationPath \"$install_dir\\Jom\" ; Set-EnvVar Path \"$install_dir\\Jom\" Machine",
+      "uninstall_cmd": "Remove-Item \"$install_dir\\Jom\" -Recurse -Force ; Remove-EnvVar Path \"$install_dir\\Jom\" Machine",
+      "test_cmd": "where.exe jom"
+    },
     "Hg": {
       "elevated": "true",
       "depends_on": ["EnvConfig"],
@@ -164,7 +176,7 @@
       "platform": "x86_64",
       "url": "none",
       "file_name": "none",
-      "install_cmd": "Set-Content -Path '$env:USERPROFILE/mercurial.ini' -Value @\"`n[ui]`nusername = $user_info`nmerge = kdiff3`neditor = notepad`n`n[extensions]`nshelve =`nbugzilla =`ncolor =`ntransplant =`nmercurial_keyring =`npurge =`nhistedit =`nrebase =`nstrip =`n`n[patch]`neol = auto`n`n[tortoisehg]`ntabwidth = 4`nui.language = en`nautoresolve = False`n`n[auth]`nhgserver.prefix = bitbucket.org`nhgserver.username = $user_name`ndhgserver.schemes = https`n\"@",
+      "install_cmd": "Set-Content -Path '$env:USERPROFILE/mercurial.ini' -Value @\"`n[ui]`nusername = $user_info`nmerge = kdiff3`neditor = notepad`n`n[extensions]`nshelve =`nbugzilla =`ncolor =`ntransplant =`nmercurial_keyring =`npurge =`nhistedit =`nrebase =`nstrip =`neol =`n`n[patch]`neol = auto`n`n[tortoisehg]`ntabwidth = 4`nui.language = en`nautoresolve = False`n`n[auth]`nhgserver.prefix = mercurial.intellicad.org`nhgserver.username = $user_name`ndhgserver.schemes = https`n\"@",
       "uninstall_cmd": "none",
       "test_cmd": "cmd /c exit ([int]!(Test-Path ('$env:USERPROFILE/mercurial.ini') -Type Leaf))"
     },
@@ -258,10 +270,12 @@
       "url": "https://dl.google.com/android/repository/sdk-tools-windows-4333796.zip",
       "file_name": "from_url",
       "vars": {
-        "sdk_dir": "Android\\Sdk"
+        "sdk_dir": "Android\\Sdk",
+        "sdk_api": "android-28",
+        "sdk_build_tools": "28.0.3"
       },
-      "install_cmd": "if (!(Test-Path \"$install_dir\\$($pkg.vars.sdk_dir)\\tools\" -Type Container)) { Expand-Archive -Path \"$file_path\" -DestinationPath \"$install_dir\\$($pkg.vars.sdk_dir)\" } ; Write-Output yes | & \"$install_dir\\$($pkg.vars.sdk_dir)\\tools\\bin\\sdkmanager\" \"build-tools;28.0.3\" \"platform-tools\" \"platforms;android-28\" \"tools\" \"ndk-bundle\" --sdk_root=\"$install_dir\\$($pkg.vars.sdk_dir)\" | %{ if (`$_ -match '\\]\\s*(\\d+)%') {Write-Progress 'Installing Android SDK' -Status ('{0}% Complete:' -f `$Matches[1]) -PercentComplete `$Matches[1]} else {`$_} } -End{Write-Progress 'Installing Android SDK' -Completed}",
-      "uninstall_cmd": "& \"$install_dir\\$($pkg.vars.sdk_dir)\\tools\\bin\\sdkmanager\" --uninstall \"build-tools;28.0.3\" \"platform-tools\" \"platforms;android-28\" \"ndk-bundle\" --sdk_root=\"$install_dir\\$($pkg.vars.sdk_dir)\" ; Remove-Item \"$install_dir\\$($pkg.vars.sdk_dir)\" -Recurse -Force",
+      "install_cmd": "if (!(Test-Path \"$install_dir\\$($pkg.vars.sdk_dir)\\tools\" -Type Container)) { Expand-Archive -Path \"$file_path\" -DestinationPath \"$install_dir\\$($pkg.vars.sdk_dir)\" } ; Write-Output yes | & \"$install_dir\\$($pkg.vars.sdk_dir)\\tools\\bin\\sdkmanager\" \"build-tools;$($pkg.vars.sdk_build_tools)\" \"platform-tools\" \"platforms;$($pkg.vars.sdk_api)\" \"tools\" \"ndk-bundle\" --sdk_root=\"$install_dir\\$($pkg.vars.sdk_dir)\" | %{ if (`$_ -match '\\]\\s*(\\d+)%') {Write-Progress 'Installing Android SDK' -Status ('{0}% Complete:' -f `$Matches[1]) -PercentComplete `$Matches[1]} else {`$_} } -End{Write-Progress 'Installing Android SDK' -Completed}",
+      "uninstall_cmd": "& \"$install_dir\\$($pkg.vars.sdk_dir)\\tools\\bin\\sdkmanager\" --uninstall \"build-tools;$($pkg.vars.sdk_build_tools)\" \"platform-tools\" \"platforms;$($pkg.vars.sdk_api)\" \"ndk-bundle\" --sdk_root=\"$install_dir\\$($pkg.vars.sdk_dir)\" ; Remove-Item \"$install_dir\\$($pkg.vars.sdk_dir)\" -Recurse -Force",
       "test_cmd": "cmd /c exit ([int]!(Test-EnvVar ANDROID_SDK_ROOT isDir))"
     },
     "AndroidSDKConfig": {
@@ -274,11 +288,13 @@
       "file_name": "none",
       "vars": {
         "sdk_dir": "Android\\Sdk",
+        "sdk_api": "android-28",
+        "sdk_build_tools": "28.0.3",
         "ndk_dir": "Android\\Sdk\\ndk-bundle"
       },
-      "install_cmd": "Set-EnvVar ANDROID_SDK_ROOT \"$install_dir\\$($pkg.vars.sdk_dir)\" ; Set-EnvVar ANDROID_NDK_ROOT \"$install_dir\\$($pkg.vars.ndk_dir)\" ; Set-EnvVar ANDROID_NDK_HOST \"windows-$platform\"",
-      "uninstall_cmd": "Remove-EnvVar ANDROID_SDK_ROOT ; Remove-EnvVar ANDROID_NDK_ROOT ; Remove-EnvVar ANDROID_NDK_HOST",
-      "test_cmd": "cmd /c exit ([int]!((Test-EnvVar ANDROID_SDK_ROOT isDir) -and (Test-EnvVar ANDROID_NDK_ROOT isDir) -and (Test-EnvVar ANDROID_NDK_HOST match '\\w+')))"
+      "install_cmd": "Set-EnvVar ANDROID_SDK_ROOT \"$install_dir\\$($pkg.vars.sdk_dir)\" ; Set-EnvVar ANDROID_NDK_ROOT \"$install_dir\\$($pkg.vars.ndk_dir)\" ; Set-EnvVar ANDROID_NDK_HOST \"windows-$platform\" ; Set-EnvVar ANDROID_API_VERSION \"$($pkg.vars.sdk_api)\" ; Set-EnvVar ANDROID_BUILD_TOOLS_VERSION \"$($pkg.vars.sdk_build_tools)\"",
+      "uninstall_cmd": "Remove-EnvVar ANDROID_SDK_ROOT ; Remove-EnvVar ANDROID_NDK_ROOT ; Remove-EnvVar ANDROID_NDK_HOST ; Remove-EnvVar ANDROID_API_VERSION ; Remove-EnvVar ANDROID_BUILD_TOOLS_VERSION",
+      "test_cmd": "cmd /c exit ([int]!((Test-EnvVar ANDROID_SDK_ROOT isDir) -and (Test-EnvVar ANDROID_NDK_ROOT isDir) -and (Test-EnvVar ANDROID_NDK_HOST match '\\w+') -and (Test-EnvVar ANDROID_API_VERSION match '\\w+') -and (Test-EnvVar ANDROID_BUILD_TOOLS_VERSION match '\\w+')))"
     }
   }
 }
