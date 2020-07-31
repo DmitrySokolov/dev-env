@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-    Manages development environment by installing/uninstalling/updating apps listed in config.json file.
+    Manages development environment by installing/uninstalling/updating apps listed in "config.json" file.
 
 .LINK
-    Copyright 2019 Dmitry Sokolov <mr.dmitry.sokolov@gmail.com>
+    Copyright 2019-2020 Dmitry Sokolov <mr.dmitry.sokolov@gmail.com>
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -24,98 +24,110 @@
     Supported commands are "install", "uninstall", "update".
 
 .PARAMETER Command
-    Supported commands: install, uninstall, update
+    Supported commands: install, uninstall, update. Default: "install".
 .PARAMETER Config
-    Optional, config file_name. Default: ".\config.json".
+    Optional, config file_name. Default: "$script_dir\config.json".
 .PARAMETER Kit
     Optional, kit name(s). Default: "default".
 .PARAMETER InstallDir
     Optional, root directory to install apps. Default: "C:\Dev\Tools".
+.PARAMETER PackagesDir
+    Optional, directory with package info files . Default: "$script_dir\packages".
 .PARAMETER CacheDir
-    Optional, directory to keep downloaded files. Default: ".cache".
+    Optional, directory to keep downloaded files. Default: "$script_dir\cache".
 .PARAMETER UserName
-    Optional, user name ("$user_name" var for "config.json"). Default: "build.bot".
+    Optional, user name ("$user_name" variable for "config.json"). Default: "build.bot".
 .PARAMETER UserInfo
-    Optional, user info ("$user_info" var for "config.json"). Default: "Build Bot <build.bot@example.org>".
+    Optional, user info ("$user_info" variable for "config.json"). Default: "Build Bot <build.bot@example.org>".
 .PARAMETER DryRun
-    Optional, show only expected commands, do not perform them. Default: "$false".
-.PARAMETER V
-    Optional, verbosity level. Default: "1".
+    Optional, flag that controls the actual execution of commands, default: $false.
+.PARAMETER Verbosity
+    Optional, verbosity level, default: 1, supported: [0=always, 1=normal, 2=detail, 3=trace].
 .PARAMETER WorkerMode
     Internal.
-
-.NOTES
-    The format of the config.json file:
-    {
-        "main": {
-            "kits": {
-                "default": [list of package IDs],
-                "another_kit_name": [list of package IDs],
-                ...
-            },
-            "install_dir": "dir name",                                      // supports vars substitution
-            "cache_dir": "dir name",                                        // supports vars substitution
-            "user_name": "user name",                                       // user name for configs
-            "user_info": "additional user info, typically name and e-mail"  // user info for configs
-        },
-        "packages": {
-            "pkg_ID": {
-                "elevated": "true|false",                                   // requires admin account to install
-                "depends_on": ["pkg_ID1", "pkg_ID2", ...],
-                "description": "description of a package (or just name)",
-                "version": "1.2.3 | none",
-                "platform": "x86 | x86_64 | arm | arm64 | mips | mips64",
-                "url": "URL | none",
-                "file_name": "from_url | custom file name",
-                "install_cmd": "command | meta_pkg | none",                 // supports vars substitution
-                "uninstall_cmd": "command | meta_pkg | none",               // supports vars substitution
-                "test_cmd": "command | none"                                // supports vars substitution
-                "vars": {}                                                  // custom variables for xxx_cmd
-            },
-            ...
-        }
-    }
-
-    References in Kits: it possible to include the whole Kit in another Kit by enter a reference:
-        * "default": ["kit:another_kit_name", "pkg_ID1", ...]
-
-    "cache_dir", "install_dir" support:
-        * environment variables in format $env:VAR_NAME
-
-    "install_cmd", "uninstall_cmd", "test_cmd" support:
-        * environment variables in format $env:VAR_NAME
-        * $user_name - the user name
-        * $user_info - the user info
-        * $install_dir - the directory name specified in -InstallDir param
-        * $file_path - the full path of the package installer
-        * $version - the value of the property Version of the current package
-        * $platform - the value of the property Platform of the current package
-        * $($pkg.vars.xxx)
 #>
 
+
 # Command-line parameters
-param (
-    [string] $Command = '',
-    [string] $Config = '.\config.json',
+[CmdletBinding()] param (
+    [ValidateSet('install', 'uninstall', 'update')]
+    [string] $Command = 'install',
+    [string] $Config = '.\config2.json',
     [string[]] $Kit = @('default'),
     [string] $InstallDir = '',
+    [string] $PackagesDir = '',
     [string] $CacheDir = '',
     [string] $UserName = '',
     [string] $UserInfo = '',
     [switch] $DryRun = $false,
-    [int]    $V = 1,
+    [int]    $Verbosity = 1,
     [switch] $WorkerMode = $false
 )
 
-$V_QUIET = 0
-$V_NORMAL = 1
-$V_HIGH = 2
 
-function Expand-String ( [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string] $value ) {
-    "@`"`n$value`n`"@" | Invoke-Expression
+$ScriptDir = Split-Path $MyInvocation.MyCommand.Source -Parent
+
+$IsElevatedPS = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+$V_ALWAYS = 0
+$V_NORMAL = 1
+$V_DETAIL = 2
+$V_TRACE  = 3
+
+$LoggerFn = 'Write-Host'
+
+
+function Write-Log
+{
+    [CmdletBinding(PositionalBinding=$false)] param (
+        [Parameter(Position=0)][int] $Level,
+        [Parameter(Position=1, ValueFromRemainingArguments=$true)] $Params,
+        [string] $Color = 'Default'
+    )
+    if ($Verbosity -ge $Level) {
+        $opt = if ($Color -ne 'Default') { @{ForegroundColor=$Color} } else { @{} }
+        Write-Output $Params -NoEnumerate | ForEach-Object { & $LoggerFn @_ @opt }
+    }
 }
 
-function Select-NonEmpty ($default) {
+
+function Expand-String
+{
+    [CmdletBinding()] param (
+        [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string] $Value
+    )
+    return "@`"`n$Value`n`"@" | Invoke-Expression
+}
+
+
+function Invoke-Cmd
+{
+    [CmdletBinding(PositionalBinding=$false)] param (
+        [Parameter(Position=0)][scriptblock] $Cmd,
+        [scriptblock] $Check = $null,
+        [string] $ErrorMsg = "`nFailed!`n`n{0}",
+        [switch] $GetOutput = $false,
+        [switch] $NoEcho = $false
+    )
+    if (-not $NoEcho) {
+        $cmd_ = Expand-String "$Cmd".Trim()
+        Write-Log $V_NORMAL "PS >  $cmd_`n"
+    }
+    if (-not $DryRun) {
+        $r = & $Cmd 2>&1 `
+            | ForEach-Object { if (-not $NoEcho) {Write-Log $V_NORMAL $_} ; Write-Output $_ } `
+            | Out-String
+        $failed_ = -not $?
+        if ($Check -is [scriptblock]) { $failed_ = -not (& $Check) }
+        if ($failed_) { throw ($ErrorMsg -f $r) }
+        if ($GetOutput) { return $r }
+    }
+    if ($GetOutput) { return '' }
+}
+
+
+function Select-NonEmpty ($default)
+{
     foreach ($a in $args) {
         $s = $a.Trim()
         if ($s.Length -gt 0) { return $s }
@@ -123,46 +135,71 @@ function Select-NonEmpty ($default) {
     return $default
 }
 
-function IIf($condition, $if_true, $if_false) {
-    if ($condition -isNot "Boolean") {
-        $_ = $condition
+
+function Select-NonEmptyPath ($default)
+{
+    return (Resolve-Path (Select-NonEmpty @args -default $default)).Path
+}
+
+
+function Set-EnvVar
+{
+    [CmdletBinding()] param (
+        [Parameter(Mandatory=$true)][string] $Name,
+        [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string] $Value,
+        [string] $Target = 'Machine'
+    )
+    if ($Name -match 'Path$') {
+        $Value = ((($env:Path + ";$Value") -replace ';;',';') -split ';' | Select-Object -Unique) -join ';'
     }
-    if ($condition) {
-        if ($if_true -is "ScriptBlock") { & $if_true } else { $if_true }
-    }
-    else {
-        if ($if_false -is "ScriptBlock") { & $if_false } else { $if_false }
+    Write-Log $V_NORMAL "PS >  Set-EnvVar '$Name' '$Value' '$Target'"
+    if (-not $DryRun) {
+        [Environment]::SetEnvironmentVariable($Name, $Value, $Target)
     }
 }
 
-$log_output = { Write-Host @_ }
-function Write-Log ($level) {
-    if ($V -ge $level) {
-        Write-Output $args -NoEnumerate | ForEach-Object $log_output
+
+function Remove-EnvVar
+{
+    [CmdletBinding()] param (
+        [Parameter(Mandatory=$true)][string]$Name,
+        [string] $Value = '',
+        [string] $Target = 'Machine'
+    )
+    if ($Name -match 'Path$') {
+        $Value = ((($env:Path -replace [regex]::Escape($Value),'') -replace ';;',';') -split ';' | Select-Object -Unique) -join ';'
+    } else {
+        $Value = $null
+    }
+    Write-Log $V_NORMAL "PS >  Remove-EnvVar '$Name'"
+    if (-not $DryRun) {
+        [Environment]::SetEnvironmentVariable($Name, $Value, $Target)
     }
 }
 
-function Invoke-Cmd {
-    $cmd = $args -join ' '
-    Write-Log $V_NORMAL $cmd
-    if (!$DryRun) {
-        $r = Invoke-Expression ($cmd + ' | Out-Default ; $?')
-        if ($r -ne $true) { throw "`nError: command failed`n" }
+
+function Test-EnvVar
+{
+    [CmdletBinding()] param (
+        [Parameter(Mandatory=$true)][string] $Name,
+        [string] $Kind = '',
+        [string] $Value = ''
+    )
+    if (-not (Test-Path env:$Name)) { return $false }
+    $v = [Environment]::GetEnvironmentVariable($Name)
+    switch ($Kind) {
+        'isFile'   { return (Test-Path $v -Type Leaf) }
+        'isDir'    { return (Test-Path $v -Type Container) }
+        'match'    { return ($v -match $Value) }
+        'notMatch' { return ($v -notMatch $Value) }
     }
+    return $true
 }
 
-function Invoke-Test {
-    $res = 'FAILED', 'OK'
-    $clr = 'Yellow', 'Green'
-    $cmd = $args -join ' '
-    Write-Log $V_HIGH '-- Test : ' $cmd -NoNewLine
-    $r = Invoke-Expression ($cmd + ' 2>&1 | Out-Null ; $?')
-    Write-Log $V_HIGH ('  [{0}]' -f $res[[int]$r]) -ForegroundColor $clr[[int]$r]
-    return $r
-}
 
-function Update-Env {
-    foreach($level in "Machine","User") {
+function Update-Environment
+{
+    foreach($level in 'Machine','User') {
         [Environment]::GetEnvironmentVariables($level).GetEnumerator() | ForEach-Object {
             # For Path variables, append the new values, if they're not already in there
             if ($_.Name -match 'Path$') {
@@ -172,193 +209,341 @@ function Update-Env {
     }
 }
 
-function Set-EnvVar {
-    param ( [Parameter(Mandatory=$true)][string] $name,
-            [Parameter(Mandatory=$true,ValueFromPipeline=$true)][string] $value,
-            [string] $target = 'Machine' )
-    if ($name -match 'Path$') {
-        $value = ((($env:Path + ";$value") -replace ';;',';') -split ';' | Select-Object -Unique) -join ';'
-    }
-    [Environment]::SetEnvironmentVariable($name, $value, $target)
-}
 
-function Remove-EnvVar {
-    param ( [Parameter(Mandatory=$true)][string] $name,
-            [string] $value = '',
-            [string] $target = 'Machine' )
-    if ($name -match 'Path$') {
-        $value = ((($env:Path -replace [regex]::Escape($value),'') -replace ';;',';') -split ';' | Select-Object -Unique) -join ';'
-    } else {
-        $value = $null
-    }
-    [Environment]::SetEnvironmentVariable($name, $value, $target)
-}
-
-function Test-EnvVar {
-    param ( [Parameter(Mandatory=$true)][string] $name,
-            [string] $kind = '',
-            [string] $value = '' )
-    if (-not (Test-Path env:$name)) { return $false }
-    $v = [Environment]::GetEnvironmentVariable($name)
-    switch ($kind) {
-        'isFile'   { return (Test-Path $v -Type Leaf) }
-        'isDir'    { return (Test-Path $v -Type Container) }
-        'match'    { return ($v -match $value) }
-        'notMatch' { return ($v -notMatch $value) }
-    }
-    return $true
-}
-
-function download ($url) {
+function Get-WebFile ($url)
+{
     $f = Split-Path $url -Leaf
     Invoke-WebRequest $url -OutFile $f
     return $f
 }
 
-function Get-PkgName ($kits, $kit_name) {
+
+function Import-Conf
+{
+    # Get config file
+    $conf_file = if ($Config -match '^http') { Get-WebFile $Config } else { $Config }
+    $conf_file = (Resolve-Path $conf_file).Path
+    if (-not (Test-Path $conf_file)) { $conf_file = Join-Path $ScriptDir $conf_file }
+    if (-not (Test-Path $conf_file)) { throw "ERROR: could not find '$Config', nothing to install." }
+
+    # Parse JSON
+    return ((Get-Content $conf_file) -join "" | ConvertFrom-Json), $conf_file
+}
+
+
+function Initialize-Vars ($conf, $conf_file)
+{
+    Set-Variable script_dir $ScriptDir -Scope 1
+    Set-Variable config_dir (Split-Path $conf_file -Parent) -Scope 1
+    Set-Variable packages_dir (Select-NonEmptyPath $PackagesDir (Expand-String $conf.packages_dir) -default "$ScriptDir\packages") -Scope 1
+    Set-Variable cache_dir (Select-NonEmptyPath $CacheDir (Expand-String $conf.cache_dir) -default "$ScriptDir\cache") -Scope 1
+    Set-Variable install_dir (Select-NonEmptyPath $InstallDir (Expand-String $conf.install_dir) -default 'C:\Dev\Tools') -Scope 1
+    Set-Variable user_name (Select-NonEmpty $UserName (Expand-String $conf.user_name) -default 'build.bot') -Scope 1
+    Set-Variable user_info (Select-NonEmpty $UserInfo (Expand-String $conf.user_info) -default 'Build Bot <build.bot@example.org>') -Scope 1
+}
+
+
+function New-PackageId ($name, $version)
+{
+    return '{0}__{1}' -f $name,$version
+}
+
+
+function Add-PackageInfo
+{
+    [CmdletBinding()] param (
+        [Parameter(Mandatory=$true)][string] $Name,
+        [Parameter()][string] $Description = '',
+        [Parameter(Mandatory=$true)][string] $Version,
+        [Parameter(Mandatory=$true)][string] $Platform,
+        [Parameter()][string] $Url = 'none',
+        [Parameter()][string] $FileName = 'none',
+        [Parameter()][bool] $Elevated = $false,
+        [Parameter()][string[]] $DependsOn = @(),
+        [Parameter()][scriptblock] $FindCmd,
+        [Parameter()][scriptblock] $InstallCmd,
+        [Parameter()][scriptblock] $UninstallCmd
+    )
+
+    $pkg_id = New-PackageId $Name $Version
+
+    Write-Log $V_DETAIL "PS >  Add-PackageInfo '$pkg_id'"
+
+    if ($Script:Packages -isNot [hashtable]) {
+        $Script:Packages = @{}
+    }
+    $Script:Packages[$pkg_id] = @{
+        Name = $Name
+        Description = $Description
+        Version = $Version
+        Platform = $Platform
+        Url = $Url
+        FileName = $FileName
+        Elevated = $Elevated
+        DependsOn = $DependsOn
+        FindCmd = $FindCmd
+        InstallCmd = $InstallCmd
+        UninstallCmd = $UninstallCmd
+        Installer = "$cache_dir\$(if ($FileName -eq 'from_url') {Split-Path $Url -Leaf} else {$FileName})"
+    }
+}
+
+
+function IsRequiredElevatedPS ($pkg_list)
+{
+    return ($pkg_list.Where({ $Script:Packages.$_.Elevated }, 'SkipUntil', 1)).Count -gt 0
+}
+
+
+function Get-KitPackages ($kits, $kit_name)
+{
     foreach ($name in $kits.$kit_name) {
         if ($name -match '^kit:(.+)$') {
-            Get-PkgName $kits $Matches[1] | Write-Output
+            Get-KitPackages $kits $Matches[1] | Write-Output
         } else {
             $name | Write-Output
         }
     }
 }
 
-function Get-PkgDependencies ($pkg, $pkg_name, [ref]$processed_list, [ref]$result) {
+
+function Get-PkgDependenciesImpl ($pkg_name, [ref]$processed_list)
+{
     if ($pkg_name -notIn $processed_list.Value) {
         $processed_list.Value += $pkg_name
-        foreach ($name in $pkg.depends_on) { Get-PkgDependencies $conf.packages.$name $name $processed_list $result }
-        $result.Value += $pkg_name
+        foreach ($name in $Script:Packages.$pkg_name.DependsOn) {
+            Get-PkgDependenciesImpl $name $processed_list | Write-Output
+        }
+        $pkg_name | Write-Output
     }
 }
 
-function Get-PkgInstaller ($url, $out_file) {
-    if ($url -ne "none") {
-        if (Test-Path $out_file -PathType Leaf) {
-            # Get package from cache
-            Write-Log $V_HIGH "-- Found" (Split-Path $out_file -Leaf) "in cache"
-        } else {
-            # Download package
-            Write-Log $V_NORMAL "-- Downloading" $url
-            Invoke-Cmd Invoke-WebRequest $url -OutFile $out_file
+
+function Get-PkgDependencies ($pkg_names)
+{
+    $result = @()
+    $processed_list = @()
+    foreach ($name in $pkg_names) {
+        Get-PkgDependenciesImpl $name ([ref]$processed_list) | ForEach-Object {
+            $result += $_
+            Write-Log $V_NORMAL "-- $($_ -replace '__',' ')"
+        }
+    }
+    return $result
+}
+
+
+function Get-PkgInstaller ($url, $out_file)
+{
+    if ($url -ne 'none') {
+        if (Test-Path $out_file -PathType Leaf) {  # Get package from cache
+            Write-Log $V_DETAIL '-- Found' (Split-Path $out_file -Leaf) 'in cache'
+        } else {  # Download package
+            Write-Log $V_NORMAL '-- Downloading' $url
+            Invoke-Cmd { Invoke-WebRequest $url -OutFile $out_file }
         }
     }
 }
 
-function Get-PkgDescription ($pkg) {
-    if ($pkg.version -ne "none") { return ("{0} v{1}" -f $pkg.description, $pkg.version) }
-    return $pkg.description
+
+function Get-PkgDescription ([hashtable] $pkg)
+{
+    if ($pkg.Version -ne 'none') { return ('{0} v{1}' -f $pkg.Description, $pkg.Version) }
+    return $pkg.Description
 }
 
-function Invoke-PkgCmd ($pkg, $pkg_cmd, $msg, $test=$null) {
-    if ($pkg_cmd -eq "none") { return }
-    # Init vars
-    $version = $pkg.version
-    $platform = $pkg.platform
-    $file_name = IIf ($pkg.file_name -eq "from_url") {Split-Path $pkg.url -Leaf} $pkg.file_name
-    $file_path = Join-Path $cache_dir $file_name
-    # Run test
-    if ($test -is "ScriptBlock") { if (!(& $test)) {return} }
-    # Get package
-    Get-PkgInstaller $pkg.url $file_path
-    # Invoke command
-    Write-Log $V_NORMAL ($msg -f (Get-PkgDescription $pkg))
-    Invoke-Cmd (Expand-String $pkg_cmd)
-    Update-Env
-}
 
-function Install-Pkg ($pkg) {
-    if ($pkg.install_cmd -eq "meta_pkg") {
-        Write-Log $V_NORMAL ("-- Installed {0}" -f (Get-PkgDescription $pkg))
-    } else {
-        Invoke-PkgCmd $pkg $pkg.install_cmd "-- Installing {0}" -test {
-            # Check if package already installed in OS
-            if ($pkg.test_cmd -ne "none" -and (Invoke-Test (Expand-String $pkg.test_cmd))) {
-                Write-Log $V_NORMAL ("-- Found {0} installed" -f $pkg.description)
-                return $false
-            }
-            return $true
+function Invoke-PkgCmd
+{
+    [CmdletBinding()] param (
+        $PkgCmd,
+        [hashtable] $Pkg,
+        [string] $Msg,
+        [switch] $RunFindCommand,
+        [switch] $OverrideExisting
+    )
+    if ($PkgCmd -eq 'none') { return }
+    # Init variables
+    $full_descr = Get-PkgDescription $Pkg
+    # Run FindCmd
+    if ($RunFindCommand  -and  $Pkg.FindCmd -is [scriptblock]) {
+        Write-Log $V_NORMAL ('-- Searching for installed {0}' -f $full_descr)
+        $success = & $Pkg.FindCmd
+        if ($success) {
+            Write-Log $V_NORMAL ("-- Found {0} installed" -f $full_descr)
+            if (-not $OverrideExisting) { return }
         }
+    }
+    # Get package installer
+    Get-PkgInstaller $Pkg.Url $Pkg.Installer
+    # Invoke command [install, uninstall, etc.]
+    Write-Log $V_NORMAL ($Msg -f $full_descr)
+    if ($PkgCmd -is [scriptblock]  -and  -not $DryRun) {
+        Invoke-Cmd $PkgCmd
+        Update-Environment
     }
 }
 
-function Uninstall-Pkg ($pkg) {
+
+function Install-Pkg ([hashtable] $pkg)
+{
+    if ($pkg.InstallCmd -eq 'meta_pkg') {
+        Write-Log $V_NORMAL ('-- Installed {0}' -f (Get-PkgDescription $pkg))
+    } elseif ($pkg.InstallCmd -is [scriptblock]) {
+        Invoke-PkgCmd $pkg.InstallCmd $pkg '-- Installing {0}' -RunFindCommand
+    }
+}
+
+
+function Uninstall-Pkg ([hashtable] $pkg)
+{
     if ($pkg.uninstall_cmd -eq "meta_pkg") {
         Write-Log $V_NORMAL ("-- Uninstalled {0}" -f (Get-PkgDescription $pkg))
-    } else {
-        Invoke-PkgCmd $pkg $pkg.uninstall_cmd "-- Uninstalling {0}"
+    } elseif ($pkg.UnnstallCmd -is [scriptblock]) {
+        Invoke-PkgCmd $pkg.UninstallCmd $pkg "-- Uninstalling {0}"
     }
 }
 
-function Start-NPipeServer ($pipe_name = "dev_env_pipe") {
-    $pipe_server = New-Object IO.Pipes.NamedPipeServerStream($pipe_name, [IO.Pipes.PipeDirection]::InOut)
-    $pipe_server.WaitForConnection()
-    $pipe_reader = New-Object IO.StreamReader($pipe_server)
-    $pipe_writer = New-Object IO.StreamWriter($pipe_server)
-    $pipe_writer.AutoFlush = $true
-    return $pipe_server, $pipe_reader, $pipe_writer
+
+function Start-NPipeServer ($pipe_name = "dev_env_pipe")
+{
+    $Script:PipeServer = [System.IO.Pipes.NamedPipeServerStream]::new($pipe_name,
+        [System.IO.Pipes.PipeDirection]::InOut)
+    $Script:PipeServer.WaitForConnection()
+    $Script:PipeReader = [System.IO.StreamReader]::new($Script:PipeServer)
+    $Script:PipeWriter = [System.IO.StreamWriter]::new($Script:PipeServer)
+    $Script:PipeWriter.AutoFlush = $true
 }
 
-function Start-NPipeClient ($pipe_name = "dev_env_pipe") {
-    $pipe_client = New-Object IO.Pipes.NamedPipeClientStream(".", $pipe_name, [IO.Pipes.PipeDirection]::InOut,
-            [IO.Pipes.PipeOptions]::None, [Security.Principal.TokenImpersonationLevel]::Impersonation)
-    $pipe_client.Connect()
-    $pipe_reader = New-Object IO.StreamReader($pipe_client)
-    $pipe_writer = New-Object IO.StreamWriter($pipe_client)
-    $pipe_writer.AutoFlush = $true
-    return $pipe_client, $pipe_reader, $pipe_writer
+
+function Start-NPipeClient ($pipe_name = "dev_env_pipe")
+{
+    $Script:PipeClient = [System.IO.Pipes.NamedPipeClientStream]::new(".", $pipe_name,
+        [System.IO.Pipes.PipeDirection]::InOut,
+        [System.IO.Pipes.PipeOptions]::None,
+        [System.Security.Principal.TokenImpersonationLevel]::Impersonation)
+    $Script:PipeClient.Connect()
+    $Script:PipeReader = [System.IO.StreamReader]::new($Script:PipeClient)
+    $Script:PipeWriter = [System.IO.StreamWriter]::new($Script:PipeClient)
+    $Script:PipeWriter.AutoFlush = $true
 }
 
-function Write-Pipe ($pipe_writer, $var) {
+
+function Write-Pipe
+{
+    [CmdletBinding()] param (
+        [Parameter(Position=0, ValueFromPipeline=$true)] $var
+    )
     $type = $var.GetType().Name
-    $pipe_writer.WriteLine($type)
+    $Script:PipeWriter.WriteLine($type)
     switch ($type) {
-        "PSCustomObject" { $pipe_writer.WriteLine((ConvertTo-Json $var -Depth 10 -Compress)) }
-        "Object[]" { $pipe_writer.WriteLine($var.Length) ; foreach ($v in $var) { $pipe_writer.WriteLine($v) } }
-        Default { $pipe_writer.WriteLine($var) }
+        'Hashtable' {
+            $h = @{}
+            foreach ($k in $var.Keys) {
+                switch ($var[$k].GetType().Name) {
+                    'ScriptBlock' { $h[$k] = '{0};{1}' -f $_, $var[$k] }
+                    Default       { $h[$k] = '{0};{1}' -f $_, (ConvertTo-Json $var[$k] -C) }
+                }
+            }
+            $s = $h | ConvertTo-Json -Depth 10 -Compress
+            $Script:PipeWriter.WriteLine($s)
+        }
+        'Object[]' {
+            $Script:PipeWriter.WriteLine($var.Length)
+            foreach ($v in $var) {
+                $Script:PipeWriter.WriteLine(($v -replace '\r','`r') -replace '\n','`n')
+            }
+        }
+        Default {
+            $Script:PipeWriter.WriteLine(($var -replace '\r','`r') -replace '\n','`n')
+        }
     }
 }
 
-function Read-Pipe ($pipe_reader) {
-    $type = $pipe_reader.ReadLine()
-    $var = $pipe_reader.ReadLine()
+
+function Read-Pipe
+{
+    $type = $Script:PipeReader.ReadLine()
+    $var = $Script:PipeReader.ReadLine()
     switch ($type) {
-        "PSCustomObject" { return ConvertFrom-Json $var }
-        "Object[]" { $len = [int]$var ; $var = @() ; for ($i=0 ; $i -lt $len; $i+=1) { $var += $pipe_reader.ReadLine() } ; return $var }
-        Default { return ($var -as $type) }
+        'Hashtable' {
+            $h = @{}
+            (ConvertFrom-Json $var).PSObject.Properties | ForEach-Object {
+                $k = $_.Name
+                $type, $val = $_.Value -split ';', 2
+                switch ($type) {
+                    'ScriptBlock' { $h[$k] = [scriptblock]::Create($val) }
+                    Default       { $h[$k] = ConvertFrom-Json $val }
+                }
+            }
+            return $h
+        }
+        'Object[]' {
+            $len = [int]$var
+            $var = @()
+            for ($i=0; $i -lt $len; $i+=1) {
+                $var += ($Script:PipeReader.ReadLine() -replace '`n',"`n") -replace '`r',"`r"
+            }
+            return $var
+        }
+        $null {
+            return $null
+        }
+        Default {
+            return ((($var -replace '`n',"`n") -replace '`r',"`r") -as $type)
+        }
     }
 }
 
-function Send-Command ($pipe_writer, $cmd, $pkg) {
-    Write-Pipe $pipe_writer $cmd
-    Write-Pipe $pipe_writer $pkg
+
+function Send-Command ($cmd, $pkg)
+{
+    Write-Pipe $cmd
+    Write-Pipe $pkg
 }
 
-function Receive-Command ($pipe_reader) {
-    $cmd = Read-Pipe $pipe_reader
-    $pkg = Read-Pipe $pipe_reader
+
+function Receive-Command
+{
+    $cmd = Read-Pipe
+    $pkg = Read-Pipe
     return $cmd, $pkg
 }
 
-function Send-Output ($pipe_writer, $text) {
-    Write-Pipe $pipe_writer "Write-Host"
-    if ($text -is "ScriptBlock") { & $text } else { Write-Pipe $pipe_writer $text }
-    Write-Pipe $pipe_writer "Write-Host:Done"
+
+function Send-CommandOutput ($text)
+{
+    Write-Pipe 'Output:start'
+    if ($text -is [scriptblock]) {
+        $output = & $text | Out-String
+        Write-Pipe $output
+    } else {
+        Write-Pipe $text
+    }
+    Write-Pipe 'Output:finish'
 }
 
-function Receive-Output ($pipe_reader) {
-    $cmd = Read-Pipe $pipe_reader
-    if ($cmd -eq "Write-Host") {
-        while ($true) {
-            $line = Read-Pipe $pipe_reader
-            if ($line -eq "Write-Host:Done") { return $null, $null }
+
+function Receive-CommandOutput
+{
+    $cmd = Read-Pipe
+    if ($cmd -ne 'Output:start') {
+        throw "Recieved unexpected output: '$cmd' (expected: 'Output:start')"
+    }
+    $done = $false
+    while (-not $done) {
+        $line = Read-Pipe
+        if ($null -eq $line) {
+            $done = $true
+        } elseif ('Output:finish' -eq $line) {
+            $done = $true
+        } else {
             $a = @() ; $o = @{} ; $arr = @($line)
             for ($i=0; $i -lt $arr.Length; $i+=1) {
-                if ($arr[$i] -eq "-NoNewLine") {
-                    $o[$arr[$i]] = $true
-                } elseif ($arr[$i] -eq "-ForegroundColor" -and ($i+1) -lt $arr.Length) {
-                    $o[$arr[$i]] = $arr[$i+1] ; $i+=1
+                if ($arr[$i] -match '-NoNewLine:?') {
+                    $o['NoNewLine'] = $true
+                } elseif ($arr[$i] -match '-ForegroundColor:?' -and ($i+1) -lt $arr.Length) {
+                    $o['Color'] = $arr[$i+1] ; $i+=1
                 } else {
                     $a += $arr[$i]
                 }
@@ -366,116 +551,133 @@ function Receive-Output ($pipe_reader) {
             Write-Log $V_NORMAL @a @o
         }
     }
-    $pkg = Read-Pipe $pipe_reader
-    return $cmd, $pkg
 }
 
-$ps_elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-function invoke ($cmd, $pkg, $pipe_reader, $pipe_writer) {
-    if (-not $pkg.elevated -or $ps_elevated) {
+function dispatch ($cmd, $pkg)
+{
+    if (-not $pkg.Elevated  -or  $IsElevatedPS) {
+        # Run command
         & $cmd $pkg
-        return
+    } else {
+        # Send command to elevated shell
+        Send-Command $cmd $pkg
+        Receive-CommandOutput
+        Update-Environment
     }
-    # Send command to elevated shell
-    Send-Command $pipe_writer $cmd $pkg
-    $c, $p = Receive-Output $pipe_reader
-    if ($null -ne $c) { throw "`nError: received unexpected command from elevated shell: '$c'" }
-    Update-Env
 }
 
-function worker {
-    try {
-        # Init vars required for substitution
-        $install_dir = $InstallDir
-        $cache_dir = $CacheDir
-        $user_name = $UserName
-        $user_info = $UserInfo
 
-        $pipe_client, $pipe_reader, $pipe_writer = Start-NPipeClient
+function pipe_logger
+{
+    Write-Pipe $args
+}
+
+
+function start_worker
+{
+    try {
+        # Init variables required for substitution
+        $conf, $conf_file = Import-Conf
+        Initialize-Vars $conf $conf_file
+
+        Start-NPipeClient
 
         # Redirect log to pipe
-        $log_output = { Write-Pipe $pipe_writer $_ }
+        $Script:LoggerFn = 'pipe_logger'
 
-        $worker_active = $true
-        while ($worker_active) {
-            $cmd, $pkg = Receive-Command $pipe_reader
+        $stopped = $false
+        while (-not $stopped) {
+            $cmd, $pkg = Receive-Command
             switch ($cmd) {
-                "Install-Pkg"   { Send-Output $pipe_writer {Install-Pkg $pkg} }
-                "Uninstall-Pkg" { Send-Output $pipe_writer {Uninstall-Pkg $pkg} }
-                "Stop-Worker"   { $worker_active = $false}
-                Default         { Send-Output $pipe_writer "Received unknown command: '$cmd'"}
+                'Install-Pkg'   { Send-CommandOutput {Install-Pkg $pkg} }
+                'Uninstall-Pkg' { Send-CommandOutput {Uninstall-Pkg $pkg} }
+                'Stop-Worker'   { $stopped = $true }
+                Default         { Send-CommandOutput "Received unknown command: '$cmd'"}
             }
         }
     }
     catch {
-        Write-Host $Error[0].ToString() -ForegroundColor Red
+        Write-Log $V_ALWAYS $Error[0].ToString() -Color Red
         exit 1
     }
     finally {
-        $pipe_client.Dispose()
+        $Script:PipeWriter.Close()
+        $Script:PipeReader.Close()
+        $Script:PipeClient.Dispose()
+        $Script:PipeWriter = $null
+        $Script:PipeReader = $null
+        $Script:PipeClient = $null
     }
 }
 
-function main {
+
+function main
+{
     try {
-        if ($Command.Trim().Length -lt 1) { throw "`nError: command is not specified" }
+        $conf, $conf_file = Import-Conf
 
-        Write-Log $V_NORMAL "Processing packages..."
+        # Init variables required for substitution
+        Initialize-Vars $conf $conf_file
+        Write-Log $V_DETAIL "Config:"
+        Write-Log $V_DETAIL "-- Script dir   : $script_dir"
+        Write-Log $V_DETAIL "-- Config dir   : $config_dir"
+        Write-Log $V_DETAIL "-- Packages dir : $packages_dir"
+        Write-Log $V_DETAIL "-- Cache dir    : $cache_dir"
+        Write-Log $V_DETAIL "-- Install dir  : $install_dir"
+        Write-Log $V_DETAIL "-- User name    : $user_name"
+        Write-Log $V_DETAIL "-- User info    : $user_info"
+        Write-Log $V_DETAIL ""
 
-        # Get config file
-        $conf_file = IIf ($Config -match '^http') {download $Config} $Config
-        if (-not (Test-Path $conf_file)) { $conf_file = Join-Path $PSScriptRoot $conf_file }
-        if (-not (Test-Path $conf_file)) { throw "ERROR: could not find '$Config', nothing to install." }
+        # Read packages info
+        Get-ChildItem "$packages_dir\*.ps1" -Recurse -Force `
+            | ForEach-Object { . $_.FullName }
 
-        # Parse JSON
-        $conf = (Get-Content $conf_file) -join "" | ConvertFrom-Json
+        Write-Log $V_NORMAL "`nPackages to process:"
 
-        # Init vars required for substitution
-        $install_dir = Select-NonEmpty $InstallDir (Expand-String $conf.main.install_dir) -default 'C:\Dev\Tools'
-        $cache_dir = Select-NonEmpty $CacheDir (Expand-String $conf.main.cache_dir) -default '.cache'
-        $user_name = Select-NonEmpty $UserName (Expand-String $conf.main.user_name) -default 'build.bot'
-        $user_info = Select-NonEmpty $UserInfo (Expand-String $conf.main.user_info) -default 'Build Bot <build.bot@example.or>'
-        Write-Log $V_HIGH "-- Install dir: $install_dir"
-        Write-Log $V_HIGH "-- Cache dir: $cache_dir"
-        Write-Log $V_HIGH "-- User name: $user_name"
-        Write-Log $V_HIGH "-- User info: $user_info"
+        # Collect all package names from all selected kits
+        $package_list = $Kit | ForEach-Object { Get-KitPackages $conf.kits $_ }
 
         # Get ordered package list
-        $processed_list = @()
-        $ordered_list = @()
-        foreach ($k in $Kit) {
-            Get-PkgName $conf.main.kits $k | ForEach-Object {
-                Get-PkgDependencies $conf.packages.$_ $_ ([ref]$processed_list) ([ref]$ordered_list)
-            }
-        }
+        $ordered_list = Get-PkgDependencies $package_list
 
         # If there are packages that require elevation run elevated PS and setup client-server mode
-        $pipe_server = $null
-        $pipe_reader = $null
-        $pipe_writer = $null
-        foreach ($name in $ordered_list) {
-            if ($conf.packages.$name.elevated -and !$ps_elevated) {
-                Write-Log $V_QUIET "Some packages require Admin privileges to install, trying to elevate privileges..."
-                $ps_args = "-File", $PSCommandPath, $Command, "-Config", $Config, "-Kit", ("'{0}'" -f ($Kit -join "','")), "-InstallDir", $install_dir, "-CacheDir", $cache_dir, "-UserName", $UserName, "-UserInfo", $UserInfo, "-DryRun", $DryRun, "-V", $V, "-WorkerMode", "-NonInteractive"
-                $ps_obj = Start-Process powershell.exe $ps_args -WorkingDirectory $PWD -Verb RunAs -WindowStyle Hidden
-                Start-Sleep -m 500
-                if ($ps_obj.HasExited) { throw "`nError: could not run this script with elevated privileges`n" }
-                $pipe_server, $pipe_reader, $pipe_writer = Start-NPipeServer
-                break
-            }
+        if ((IsRequiredElevatedPS $ordered_list)  -and  -not $IsElevatedPS) {
+            Write-Log $V_ALWAYS "`nSome packages require Admin privileges to install, trying to elevate privileges..."
+            $ps_args = @(
+                "-NoExit",#"-NonInteractive",
+                "-File", $PSCommandPath,
+                $Command,
+                "-Config", ('"{0}"' -f $conf_file),
+                "-Kit", ('"{0}"' -f ($Kit -join '","')),
+                "-InstallDir", ('"{0}"' -f $install_dir),
+                "-PackagesDir", ('"{0}"' -f $packages_dir),
+                "-CacheDir", ('"{0}"' -f $cache_dir),
+                "-UserName", ('"{0}"' -f $user_name),
+                "-UserInfo", ('"{0}"' -f $user_info),
+                "-Verbosity", ('"{0}"' -f $Verbosity),
+                "-WorkerMode")
+            if ($DryRun) { $ps_args += "-DryRun" }
+            $ps_obj = Start-Process powershell.exe $ps_args -WorkingDirectory $PWD -Verb RunAs -PassThru #-WindowStyle Hidden
+            Start-Sleep -Milliseconds 500
+            if (-not $ps_obj  -or  $ps_obj.HasExited) { throw "`nError: could not run this script with elevated privileges`n" }
+            Start-NPipeServer
         }
 
-        if ($Command -eq "install") {
-            # Install packages listed in the kit
-            foreach ($name in $ordered_list) { invoke Install-Pkg $conf.packages.$name $pipe_reader $pipe_writer }
+        if ($Command -eq 'install') {
+            foreach ($name in $ordered_list) {
+                Write-Log $V_NORMAL "`n$($name -replace '__',' '):"
+                dispatch 'Install-Pkg' $Script:Packages.$name
+            }
         }
-        elseif ($Command -eq "uninstall") {
-            # Uninstall packages listed in the kit
+        elseif ($Command -eq 'uninstall') {
             [array]::Reverse($ordered_list)
-            foreach ($name in $ordered_list) { invoke Uninstall-Pkg $conf.packages.$name $pipe_reader $pipe_writer }
+            foreach ($name in $ordered_list) {
+                Write-Log $V_NORMAL "`n$($name -replace '__',' '):"
+                dispatch 'Uninstall-Pkg' $Script:Packages.$name
+            }
         }
-        elseif ($Command -eq "update") {
+        elseif ($Command -eq 'update') {
             throw "`nNot implemented."
         }
         else {
@@ -483,20 +685,28 @@ function main {
         }
     }
     catch {
-        Write-Host $Error[0].ToString() -ForegroundColor Red
+        Write-Log $V_ALWAYS $Error[0].ToString() -Color Red
         exit 1
     }
     finally {
-        if ($null -ne $pipe_server) {
-            Send-Command $pipe_writer "Stop-Worker" "now"
-            $pipe_server.Dispose()
+        if ($null -ne $Script:PipeServer) {
+            if ($Script:PipeServer.IsConnected) {
+                Send-Command 'Stop-Worker' 'now'
+                Start-Sleep -Milliseconds 100
+            }
+            $Script:PipeWriter.Close()
+            $Script:PipeReader.Close()
+            $Script:PipeServer.Dispose()
+            $Script:PipeWriter = $null
+            $Script:PipeReader = $null
+            $Script:PipeServer = $null
         }
     }
 }
 
 
 if ($WorkerMode) {
-    worker
+    start_worker
 } else {
     main
 }
