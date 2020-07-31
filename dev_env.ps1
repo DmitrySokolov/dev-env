@@ -245,7 +245,11 @@ function Initialize-Vars ($conf, $conf_file)
 
 function New-PackageId ($name, $version)
 {
-    return '{0}__{1}' -f $name,$version
+    if ($version -eq 'none') {
+        return $name
+    } else {
+        return '{0}__{1}' -f $name,$version
+    }
 }
 
 
@@ -253,16 +257,17 @@ function Add-PackageInfo
 {
     [CmdletBinding()] param (
         [Parameter(Mandatory=$true)][string] $Name,
-        [Parameter()][string] $Description = '',
         [Parameter(Mandatory=$true)][string] $Version,
         [Parameter(Mandatory=$true)][string] $Platform,
-        [Parameter()][string] $Url = 'none',
-        [Parameter()][string] $FileName = 'none',
-        [Parameter()][bool] $Elevated = $false,
-        [Parameter()][string[]] $DependsOn = @(),
-        [Parameter()][scriptblock] $FindCmd,
-        [Parameter()][scriptblock] $InstallCmd,
-        [Parameter()][scriptblock] $UninstallCmd
+        [string] $Description = '',
+        [string] $Url = 'none',
+        [string] $FileName = 'none',
+        [bool] $RequiresElevatedPS = $false,
+        [bool] $IsMetaPackage = $false,
+        [string[]] $DependsOn = @(),
+        [scriptblock] $FindCmd,
+        [scriptblock] $InstallCmd,
+        [scriptblock] $UninstallCmd
     )
 
     $pkg_id = New-PackageId $Name $Version
@@ -279,7 +284,8 @@ function Add-PackageInfo
         Platform = $Platform
         Url = $Url
         FileName = $FileName
-        Elevated = $Elevated
+        RequiresElevatedPS = $RequiresElevatedPS
+        IsMetaPackage = $IsMetaPackage
         DependsOn = $DependsOn
         FindCmd = $FindCmd
         InstallCmd = $InstallCmd
@@ -291,7 +297,7 @@ function Add-PackageInfo
 
 function IsRequiredElevatedPS ($pkg_list)
 {
-    return ($pkg_list.Where({ $Script:Packages.$_.Elevated }, 'SkipUntil', 1)).Count -gt 0
+    return ($pkg_list.Where({ $Script:Packages.$_.RequiresElevatedPS }, 'SkipUntil', 1)).Count -gt 0
 }
 
 
@@ -348,59 +354,58 @@ function Get-PkgInstaller ($url, $out_file)
 
 function Get-PkgDescription ([hashtable] $pkg)
 {
-    if ($pkg.Version -ne 'none') { return ('{0} v{1}' -f $pkg.Description, $pkg.Version) }
+    if ($pkg.Version -ne 'none') { return ($pkg.Description -f $pkg.Version) }
     return $pkg.Description
-}
-
-
-function Invoke-PkgCmd
-{
-    [CmdletBinding()] param (
-        $PkgCmd,
-        [hashtable] $Pkg,
-        [string] $Msg,
-        [switch] $RunFindCommand,
-        [switch] $OverrideExisting
-    )
-    if ($PkgCmd -eq 'none') { return }
-    # Init variables
-    $full_descr = Get-PkgDescription $Pkg
-    # Run FindCmd
-    if ($RunFindCommand  -and  $Pkg.FindCmd -is [scriptblock]) {
-        Write-Log $V_NORMAL ('-- Searching for installed {0}' -f $full_descr)
-        $success = & $Pkg.FindCmd
-        if ($success) {
-            Write-Log $V_NORMAL ("-- Found {0} installed" -f $full_descr)
-            if (-not $OverrideExisting) { return }
-        }
-    }
-    # Get package installer
-    Get-PkgInstaller $Pkg.Url $Pkg.Installer
-    # Invoke command [install, uninstall, etc.]
-    Write-Log $V_NORMAL ($Msg -f $full_descr)
-    if ($PkgCmd -is [scriptblock]  -and  -not $DryRun) {
-        Invoke-Cmd $PkgCmd
-        Update-Environment
-    }
 }
 
 
 function Install-Pkg ([hashtable] $pkg)
 {
-    if ($pkg.InstallCmd -eq 'meta_pkg') {
-        Write-Log $V_NORMAL ('-- Installed {0}' -f (Get-PkgDescription $pkg))
-    } elseif ($pkg.InstallCmd -is [scriptblock]) {
-        Invoke-PkgCmd $pkg.InstallCmd $pkg '-- Installing {0}' -RunFindCommand
+    $full_descr = Get-PkgDescription $pkg
+    # Check if it is meta package
+    if ($pkg.IsMetaPackage  -and  $pkg.InstallCmd -isNot [scriptblock]) {
+        Write-Log $V_NORMAL "-- Installed $full_descr"
+        return
+    }
+    # Run FindCmd
+    if ($pkg.FindCmd -is [scriptblock]) {
+        Write-Log $V_NORMAL "-- Searching for installed $full_descr"
+        $success = & $pkg.FindCmd
+        if ($success) {
+            Write-Log $V_NORMAL "-- Found $full_descr installed"
+            return
+        }
+    }
+    # Get package installer
+    Get-PkgInstaller $pkg.Url $pkg.Installer
+    # Run InstallCmd
+    Write-Log $V_NORMAL "-- Installing  $full_descr"
+    if ($pkg.InstallCmd -is [scriptblock]) {
+        Invoke-Cmd $pkg.InstallCmd
+        Update-Environment
+    } else {
+        Write-Log $V_NORMAL '-- No command is defined'
     }
 }
 
 
 function Uninstall-Pkg ([hashtable] $pkg)
 {
-    if ($pkg.uninstall_cmd -eq "meta_pkg") {
-        Write-Log $V_NORMAL ("-- Uninstalled {0}" -f (Get-PkgDescription $pkg))
-    } elseif ($pkg.UnnstallCmd -is [scriptblock]) {
-        Invoke-PkgCmd $pkg.UninstallCmd $pkg "-- Uninstalling {0}"
+    $full_descr = Get-PkgDescription $pkg
+    # Check if it is meta package
+    if ($pkg.IsMetaPackage  -and  $pkg.UninstallCmd -isNot [scriptblock]) {
+        Write-Log $V_NORMAL "-- Uninstalled $full_descr"
+        return
+    }
+    # Get package installer
+    Get-PkgInstaller $pkg.Url $pkg.Installer
+    # Run UninstallCmd
+    Write-Log $V_NORMAL "-- Uninstalling  $full_descr"
+    if ($pkg.UninstallCmd -is [scriptblock]) {
+        Invoke-Cmd $pkg.UninstallCmd
+        Update-Environment
+    } else {
+        Write-Log $V_NORMAL '-- No command is defined'
     }
 }
 
@@ -556,7 +561,7 @@ function Receive-CommandOutput
 
 function dispatch ($cmd, $pkg)
 {
-    if (-not $pkg.Elevated  -or  $IsElevatedPS) {
+    if (-not $pkg.RequiresElevatedPS  -or  $IsElevatedPS) {
         # Run command
         & $cmd $pkg
     } else {
