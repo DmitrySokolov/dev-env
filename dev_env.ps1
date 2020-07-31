@@ -645,7 +645,7 @@ function main
         if ((IsRequiredElevatedPS $ordered_list)  -and  -not $IsElevatedPS) {
             Write-Log $V_ALWAYS "`nSome packages require Admin privileges to install, trying to elevate privileges..."
             $ps_args = @(
-                "-NoExit",#"-NonInteractive",
+                "-NonInteractive",
                 "-File", $PSCommandPath,
                 $Command,
                 "-Config", ('"{0}"' -f $conf_file),
@@ -658,7 +658,7 @@ function main
                 "-Verbosity", ('"{0}"' -f $Verbosity),
                 "-WorkerMode")
             if ($DryRun) { $ps_args += "-DryRun" }
-            $ps_obj = Start-Process powershell.exe $ps_args -WorkingDirectory $PWD -Verb RunAs -PassThru #-WindowStyle Hidden
+            $ps_obj = Start-Process powershell.exe $ps_args -WorkingDirectory $PWD -Verb RunAs -PassThru -WindowStyle Hidden
             Start-Sleep -Milliseconds 500
             if (-not $ps_obj  -or  $ps_obj.HasExited) { throw "`nError: could not run this script with elevated privileges`n" }
             Start-NPipeServer
