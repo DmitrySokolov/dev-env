@@ -5,14 +5,14 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -Url "http://strawberryperl.com/download/5.30.2.1/strawberry-perl-5.30.2.1-64bit.msi" `
     -FileName "from_url" `
-    -RequiresElevatedPS $true `
     -DependsOn @("Env_config__1.0") `
+    -RequiresElevatedPS $true `
     -FindCmd {
         where.exe py 2>&1 | Out-Null
         if ($?) { (perl --version | Select-String '\bv5\.30\b' -Quiet) -eq $true } else { $? }
     } `
     -InstallCmd {
-        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\Perl"
+        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\Perl" /qb
     } `
     -UninstallCmd {
         msiexec.exe /x $Pkg.Installer /qb
