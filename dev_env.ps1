@@ -265,6 +265,7 @@ function Add-PackageInfo
         [bool] $RequiresElevatedPS = $false,
         [bool] $IsMetaPackage = $false,
         [string[]] $DependsOn = @(),
+        [scriptblock] $InitCmd,
         [scriptblock] $FindCmd,
         [scriptblock] $InstallCmd,
         [scriptblock] $UninstallCmd
@@ -287,6 +288,7 @@ function Add-PackageInfo
         RequiresElevatedPS = $RequiresElevatedPS
         IsMetaPackage = $IsMetaPackage
         DependsOn = $DependsOn
+        InitCmd = $InitCmd
         FindCmd = $FindCmd
         InstallCmd = $InstallCmd
         UninstallCmd = $UninstallCmd
@@ -367,6 +369,10 @@ function Install-Pkg ([hashtable] $pkg)
         Write-Log $V_NORMAL "-- Installed $full_descr"
         return
     }
+    # Run InitCmd
+    if ($pkg.InitCmd -is [scriptblock]) {
+        & $pkg.InitCmd
+    }
     # Run FindCmd
     if ($pkg.FindCmd -is [scriptblock]) {
         Write-Log $V_NORMAL "-- Searching for installed $full_descr"
@@ -396,6 +402,10 @@ function Uninstall-Pkg ([hashtable] $pkg)
     if ($pkg.IsMetaPackage  -and  $pkg.UninstallCmd -isNot [scriptblock]) {
         Write-Log $V_NORMAL "-- Uninstalled $full_descr"
         return
+    }
+    # Run InitCmd
+    if ($pkg.InitCmd -is [scriptblock]) {
+        & $pkg.InitCmd
     }
     # Get package installer
     Get-PkgInstaller $pkg.Url $pkg.Installer
