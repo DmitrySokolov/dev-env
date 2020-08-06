@@ -3,7 +3,7 @@ Add-PackageInfo `
     -Description "DirectX SDK v{0}" `
     -Version "9.29.1962" `
     -Platform "x86_64" `
-    -DependsOn @("Env_config__1.0") `
+    -DependsOn @("Env_config") `
     -RequiresElevatedPS $true `
     -FindCmd {
         Test-EnvVar DXSDK_DIR isDir

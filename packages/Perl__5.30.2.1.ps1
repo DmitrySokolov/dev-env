@@ -5,7 +5,7 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -Url "http://strawberryperl.com/download/5.30.2.1/strawberry-perl-5.30.2.1-64bit.msi" `
     -FileName "from_url" `
-    -DependsOn @("Env_config__1.0") `
+    -DependsOn @("Env_config") `
     -RequiresElevatedPS $true `
     -FindCmd {
         where.exe py 2>&1 | Out-Null

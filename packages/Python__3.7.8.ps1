@@ -5,7 +5,7 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -Url "https://www.python.org/ftp/python/3.7.8/python-3.7.8-amd64.exe" `
     -FileName "from_url" `
-    -DependsOn @("Env_config__1.0") `
+    -DependsOn @("Env_config") `
     -RequiresElevatedPS $true `
     -FindCmd {
         where.exe py 2>&1 | Out-Null

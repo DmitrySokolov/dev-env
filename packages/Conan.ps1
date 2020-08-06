@@ -3,7 +3,7 @@ Add-PackageInfo `
     -Description "Conan package manager for C++" `
     -Version "none" `
     -Platform "x86_64" `
-    -DependsOn @("Python3") `
+    -DependsOn @("Python__3") `
     -FindCmd {
         where.exe conan 2>&1 | Out-Null ; $?
     } `

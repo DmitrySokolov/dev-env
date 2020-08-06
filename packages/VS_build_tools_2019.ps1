@@ -5,7 +5,7 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -Url "https://download.visualstudio.microsoft.com/download/pr/067fd8d0-753e-4161-8780-dfa3e577839e/91e449a6b736cda31d94613f6d88668825e8b0b43f8b041d22b3a3461b23767f/vs_BuildTools.exe" `
     -FileName "from_url" `
-    -DependsOn @("Env_config__1.0") `
+    -DependsOn @("Env_config") `
     -RequiresElevatedPS $true `
     -FindCmd {
         Test-Path "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019" -Type Container

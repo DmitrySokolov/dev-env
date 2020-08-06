@@ -5,7 +5,7 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -Url "https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip" `
     -FileName "from_url" `
-    -DependsOn @("Env_config__1.0") `
+    -DependsOn @("Env_config") `
     -RequiresElevatedPS $true `
     -FindCmd {
         where.exe ninja 2>&1 | Out-Null

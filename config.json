@@ -14,7 +14,12 @@
     "user_name": "build.bot",
     "user_info": "Build Bot <build.bot@example.org>",
     "kits": {
-        "default": ["JDK__1.8.0.201-1", "kit:config"],
-        "config": ["Env_config__1.0"]
+        "default": [
+            "kit:config", "kit:common"],
+        "config": [
+            "Env_config"],
+        "common": [
+            "Python__3", "Conan", "Conan_config", "TortoiseHg", "TortoiseHg_config",
+            "Git", "Git_config"]
     }
 }

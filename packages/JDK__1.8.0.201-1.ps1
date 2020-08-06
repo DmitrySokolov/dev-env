@@ -5,7 +5,7 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -Url "https://github.com/ojdkbuild/ojdkbuild/releases/download/1.8.0.201-1/java-1.8.0-openjdk-1.8.0.201-1.b09.ojdkbuild.windows.x86_64.msi" `
     -FileName "from_url" `
-    -DependsOn @("Env_config__1.0") `
+    -DependsOn @("Env_config") `
     -RequiresElevatedPS $true `
     -FindCmd {
         where.exe javac 2>&1 | Out-Null ; $?

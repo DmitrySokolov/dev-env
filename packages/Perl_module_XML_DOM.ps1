@@ -3,7 +3,7 @@ Add-PackageInfo `
     -Description "Perl module: XML::DOM" `
     -Version "none" `
     -Platform "x86_64" `
-    -DependsOn @("Perl__5") `
+    -DependsOn @("Perl") `
     -FindCmd {
         $null -ne (perldoc -l XML::DOM 2>$null)
     } `

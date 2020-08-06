@@ -3,7 +3,7 @@ Add-PackageInfo `
     -Description "Git VCS config" `
     -Version "none" `
     -Platform "x86_64" `
-    -DependsOn @("Git__2") `
+    -DependsOn @("Git") `
     -FindCmd {
         Test-Path $env:USERPROFILE\.gitconfig -Type Leaf
     } `

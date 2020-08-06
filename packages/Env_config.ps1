@@ -1,7 +1,7 @@
 Add-PackageInfo `
     -Name "Env_config" `
     -Description "Environment variables" `
-    -Version "1.0" `
+    -Version "none" `
     -Platform "x86_64" `
     -FindCmd {
         Test-EnvVar HOME isDir

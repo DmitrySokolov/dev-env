@@ -5,7 +5,7 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -Url "https://www.mercurial-scm.org/release/tortoisehg/windows/tortoisehg-stable-5.5.102.119-x64.msi" `
     -FileName "from_url" `
-    -DependsOn @("Env_config__1.0") `
+    -DependsOn @("Env_config") `
     -RequiresElevatedPS $true `
     -FindCmd {
         where.exe thg 2>&1 | Out-Null

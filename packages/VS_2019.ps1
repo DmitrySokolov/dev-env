@@ -5,7 +5,7 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -Url "https://download.visualstudio.microsoft.com/download/pr/584a5fcf-dd07-4c36-add9-620e858c9a35/d7fe90b28d868706552a6d98ab8c8753e399dfa95753a1281ff388b691ab5465/vs_Community.exe" `
     -FileName "from_url" `
-    -DependsOn @("Env_config__1.0") `
+    -DependsOn @("Env_config") `
     -RequiresElevatedPS $true `
     -FindCmd {
         Test-Path "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019" -Type Container

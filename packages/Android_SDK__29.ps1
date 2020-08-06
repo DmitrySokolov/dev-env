@@ -5,7 +5,7 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -Url "https://dl.google.com/android/repository/commandlinetools-win-6609375_latest.zip" `
     -FileName "from_url" `
-    -DependsOn @("Env_config__1.0") `
+    -DependsOn @("Env_config", "JDK__8") `
     -RequiresElevatedPS $true `
     -InitCmd {
         Set-Variable root_dir "$install_dir\Android" -Scope 1
@@ -30,6 +30,7 @@ Add-PackageInfo `
                 "platform-tools" `
                 "platforms;$sdk_ver" `
                 "ndk;$ndk_ver" `
+                "extras;google;usb_driver" `
             | ForEach-Object {
                 if ($_ -match '\]\s*(\d+)%') {
                     Write-Progress 'Installing Android SDK' `
