@@ -3,7 +3,7 @@ Add-PackageInfo `
     -Description "Components of Windows SDK v{0}" `
     -Version "10.0.18362" `
     -Platform "x86_64" `
-    -DependsOn @("Build_tools_2019") `
+    -DependsOn @("VS_2019|VS_build_tools_2019") `
     -RequiresElevatedPS $true `
     -InitCmd {
         Set-Variable reg_key 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows Kits\Installed Roots' -Scope 1
