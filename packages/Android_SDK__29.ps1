@@ -10,7 +10,7 @@ Add-PackageInfo `
     -InitCmd {
         Set-Variable root_dir "$install_dir\Android" -Scope 1
         Set-Variable sdk_dir "$root_dir\Sdk" -Scope 1
-        Set-Variable sdk_manager "$sdk_dir\tools\bin\sdkmanager" -Scope 1
+        Set-Variable sdk_manager "$sdk_dir\cmdline-tools\latest\bin\sdkmanager" -Scope 1
         Set-Variable build_tools_ver "29.0.3" -Scope 1
         Set-Variable sdk_ver "android-29" -Scope 1
         Set-Variable ndk_ver "21.0.6113669" -Scope 1
@@ -19,17 +19,17 @@ Add-PackageInfo `
         Test-EnvVar ANDROID_SDK_ROOT isDir
     } `
     -InstallCmd {
-        if (Test-Path "$sdk_dir\tools" -Type Container) {
-            Remove-Item "$sdk_dir\tools" -Recurse -Force
+        if (Test-Path "$sdk_dir\cmdline-tools" -Type Container) {
+            Remove-Item "$sdk_dir\cmdline-tools" -Recurse -Force
         }
-        Expand-Archive -Path $Pkg.Installer -DestinationPath $sdk_dir
+        Expand-Archive -Path $Pkg.Installer -DestinationPath "$sdk_dir\cmdline-tools"
+        Move-Item "$sdk_dir\cmdline-tools\tools" "$sdk_dir\cmdline-tools\latest"
         Write-Output yes `
             | & $sdk_manager `
                 "build-tools;$build_tools_ver" `
                 "platform-tools" `
                 "platforms;$sdk_ver" `
                 "ndk;$ndk_ver" `
-                --sdk_root=$sdk_dir `
             | ForEach-Object {
                 if ($_ -match '\]\s*(\d+)%') {
                     Write-Progress 'Installing Android SDK' `
