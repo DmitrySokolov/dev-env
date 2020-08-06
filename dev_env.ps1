@@ -19,9 +19,8 @@
 
 
 .DESCRIPTION
-    Manages development environment. The "config.json" file should contain description of apps to install,
-    their dependencies, and instruction how to detect, install, and uninstall an app.
-    Supported commands are "install", "uninstall", "update".
+    Manages development environment. The "config.json" file should contain description
+    of apps to install. Supported commands are "install", "uninstall", "update".
 
 .PARAMETER Command
     Supported commands: install, uninstall, update. Default: "install".
@@ -315,19 +314,31 @@ function Get-KitPackages ($kits, $kit_name)
 }
 
 
-function Get-PkgDependenciesImpl ($pkg_name, [ref]$processed_list)
+function ContainsAny ([string[]] $list, [string[]] $names)
+{
+    foreach ($n in $names) {
+        if ($list -contains $n) {return $true}
+    }
+    return $false
+}
+
+
+function Get-PkgDependenciesImpl ([string] $pkg_name, [ref] $processed_list)
 {
     if ($pkg_name -notIn $processed_list.Value) {
         $processed_list.Value += $pkg_name
         foreach ($name in $Script:Packages.$pkg_name.DependsOn) {
-            Get-PkgDependenciesImpl $name $processed_list | Write-Output
+            $alt = $name.Split('|')
+            if (-not (ContainsAny $processed_list.Value $alt)) {
+                Get-PkgDependenciesImpl $alt[0] $processed_list | Write-Output
+            }
         }
         $pkg_name | Write-Output
     }
 }
 
 
-function Get-PkgDependencies ($pkg_names)
+function Get-PkgDependencies ([string[]] $pkg_names)
 {
     $result = @()
     $processed_list = @()
