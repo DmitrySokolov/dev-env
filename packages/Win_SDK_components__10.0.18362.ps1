@@ -19,7 +19,7 @@ Add-PackageInfo `
             | Where-Object Version -match ('\b'+ $Pkg.Version +'\b')
             ).Metadata.BundleCachePath
         & $win_sdk_installer /features OptionId.WindowsDesktopDebuggers /quiet /norestart /ceip off | Out-Default
-        Set-EnvVar Path (Join-Path (Get-ItemPropertyValue $reg_key -Name $reg_prop) 'x64') Machine
+        Set-EnvVar Path (Join-Path (Get-ItemPropertyValue $reg_key -Name $reg_prop) x64) Machine
     } `
     -UninstallCmd {
         $win_sdk_installer = (Get-Package `

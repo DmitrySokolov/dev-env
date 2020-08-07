@@ -11,11 +11,11 @@ Add-PackageInfo `
     -InstallCmd {
         $dx_dir = "${env:ProgramFiles(x86)}\Microsoft SDKs\DirectX SDK (June 2010)"
         & $Pkg.Installer /P $dx_dir /U | Out-Default
-        Set-EnvVar DXSDK_DIR $dx_dir
+        Set-EnvVar DXSDK_DIR $dx_dir Machine
     } `
     -UninstallCmd {
         $reg_key = 'HKLM:SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft DirectX SDK (June 2010)'
         $reg_prop = 'UninstallString'
         & (Get-ItemPropertyValue $reg_key -Name $reg_prop) /U | Out-Default
-        Remove-EnvVar DXSDK_DIR
+        Remove-EnvVar DXSDK_DIR Machine
     }
