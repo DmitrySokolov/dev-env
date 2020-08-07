@@ -24,8 +24,8 @@ Add-PackageInfo `
     -UninstallCmd {
         $win_sdk_installer = (Get-Package `
             | Where-Object Name -match 'Windows Software Development Kit' `
-            | Where-Object Version -match ('\b'+ $Pkg.Version +'\b')
+            | Where-Object Version -match ('\b'+ $Pkg.Version +'\b') `
             ).Metadata.BundleCachePath
         & $win_sdk_installer /uninstall /quiet /norestart | Out-Default
-        Remove-EnvVar Path (Join-Path (Get-ItemPropertyValue $reg_key -Name $reg_prop)) x64) Machine
+        Remove-EnvVar Path (Join-Path (Get-ItemPropertyValue $reg_key -Name $reg_prop) x64) Machine
     }

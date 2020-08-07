@@ -51,7 +51,7 @@
 [CmdletBinding()] param (
     [ValidateSet('install', 'uninstall', 'update')]
     [string] $Command = 'install',
-    [string] $Config = '.\config2.json',
+    [string] $Config = '.\config.json',
     [string[]] $Kit = @('default'),
     [string] $InstallDir = '',
     [string] $PackagesDir = '',
