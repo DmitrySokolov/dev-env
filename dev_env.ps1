@@ -66,6 +66,7 @@
 
 $ScriptDir = Split-Path $MyInvocation.MyCommand.Source -Parent
 
+$IsDebugMode = $PSBoundParameters.Debug
 $IsElevatedPS = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 $V_ALWAYS = 0
@@ -90,6 +91,18 @@ function Write-Log
 }
 
 
+function Write-CustomProgress
+{
+    if (-not $WorkerMode) {
+        Write-Progress @args
+    } else {
+        Write-Output $args -NoEnumerate | ForEach-Object {
+            Write-Log $V_ALWAYS 'Write-Progress' @_
+        }
+    }
+}
+
+
 function Expand-String
 {
     [CmdletBinding()] param (
@@ -109,7 +122,7 @@ function Invoke-Cmd
         [switch] $NoEcho = $false
     )
     if (-not $NoEcho) {
-        $cmd_ = Expand-String "$Cmd".Trim()
+        $cmd_ = "$Cmd".Trim()
         Write-Log $V_NORMAL "PS >  $cmd_`n"
     }
     if (-not $DryRun) {
@@ -137,7 +150,7 @@ function Select-NonEmpty ($default)
 
 function Select-NonEmptyPath ($default)
 {
-    return (Resolve-Path (Select-NonEmpty @args -default $default)).Path
+    return [System.IO.Path]::GetFullPath((Select-NonEmpty @args -default $default))
 }
 
 
@@ -314,7 +327,7 @@ function Get-KitPackages ($kits, $kit_name)
 }
 
 
-function ContainsAny ([string[]] $list, [string[]] $names)
+function ListContainsAny ([string[]] $list, [string[]] $names)
 {
     foreach ($n in $names) {
         if ($list -contains $n) {return $true}
@@ -329,7 +342,7 @@ function Get-PkgDependenciesImpl ([string] $pkg_name, [ref] $processed_list)
         $processed_list.Value += $pkg_name
         foreach ($name in $Script:Packages.$pkg_name.DependsOn) {
             $alt = $name.Split('|')
-            if (-not (ContainsAny $processed_list.Value $alt)) {
+            if (-not (ListContainsAny $processed_list.Value $alt)) {
                 Get-PkgDependenciesImpl $alt[0] $processed_list | Write-Output
             }
         }
@@ -344,6 +357,7 @@ function Get-PkgDependencies ([string[]] $pkg_names)
     $processed_list = @()
     foreach ($name in $pkg_names) {
         Get-PkgDependenciesImpl $name ([ref]$processed_list) | ForEach-Object {
+            if ($Script:Packages.Keys -notContains $_) { throw "`nError: unknown package '$_'"}
             $result += $_
             Write-Log $V_NORMAL "-- $($_ -replace '__',' ')"
         }
@@ -392,6 +406,7 @@ function Install-Pkg ([hashtable] $pkg)
             Write-Log $V_NORMAL "-- Found $full_descr installed"
             return
         }
+        Write-Log $V_NORMAL "-- Not installed"
     }
     # Get package installer
     Get-PkgInstaller $pkg.Url $pkg.Installer
@@ -455,6 +470,12 @@ function Start-NPipeClient ($pipe_name = "dev_env_pipe")
 }
 
 
+function worker_debug_output
+{
+    if ($IsDebugMode -and $WorkerMode) { Write-Host @args }
+}
+
+
 function Write-Pipe
 {
     [CmdletBinding()] param (
@@ -462,10 +483,15 @@ function Write-Pipe
     )
     $type = $var.GetType().Name
     $Script:PipeWriter.WriteLine($type)
+    worker_debug_output "`n`nWrite-Pipe`n  Type: $type"
     switch ($type) {
         'Hashtable' {
             $h = @{}
             foreach ($k in $var.Keys) {
+                if ($null -eq $var[$k]) {
+                    $h[$k] = 'null;null'
+                    continue
+                }
                 switch ($var[$k].GetType().Name) {
                     'ScriptBlock' { $h[$k] = '{0};{1}' -f $_, $var[$k] }
                     Default       { $h[$k] = '{0};{1}' -f $_, (ConvertTo-Json $var[$k] -C) }
@@ -473,15 +499,21 @@ function Write-Pipe
             }
             $s = $h | ConvertTo-Json -Depth 10 -Compress
             $Script:PipeWriter.WriteLine($s)
+            worker_debug_output "  Value: $s"
         }
         'Object[]' {
             $Script:PipeWriter.WriteLine($var.Length)
+            worker_debug_output "  Length: $($var.Length)`n  Values:"
             foreach ($v in $var) {
-                $Script:PipeWriter.WriteLine(($v -replace '\r','`r') -replace '\n','`n')
+                $s = ($v -replace '\r','`r') -replace '\n','`n'
+                $Script:PipeWriter.WriteLine($s)
+                worker_debug_output "  *** $s"
             }
         }
         Default {
-            $Script:PipeWriter.WriteLine(($var -replace '\r','`r') -replace '\n','`n')
+            $s = ($var -replace '\r','`r') -replace '\n','`n'
+            $Script:PipeWriter.WriteLine($s)
+            worker_debug_output "  Value: $s"
         }
     }
 }
@@ -499,6 +531,7 @@ function Read-Pipe
                 $type, $val = $_.Value -split ';', 2
                 switch ($type) {
                     'ScriptBlock' { $h[$k] = [scriptblock]::Create($val) }
+                    'null'        { $h[$k] = $null }
                     Default       { $h[$k] = ConvertFrom-Json $val }
                 }
             }
@@ -541,8 +574,8 @@ function Send-CommandOutput ($text)
 {
     Write-Pipe 'Output:start'
     if ($text -is [scriptblock]) {
-        $output = & $text | Out-String
-        Write-Pipe $output
+        # Just execute a command, output is already redirected
+        & $text
     } else {
         Write-Pipe $text
     }
@@ -566,15 +599,22 @@ function Receive-CommandOutput
         } else {
             $a = @() ; $o = @{} ; $arr = @($line)
             for ($i=0; $i -lt $arr.Length; $i+=1) {
-                if ($arr[$i] -match '-NoNewLine:?') {
-                    $o['NoNewLine'] = $true
-                } elseif ($arr[$i] -match '-ForegroundColor:?' -and ($i+1) -lt $arr.Length) {
+                if ($arr[$i] -match '^-(NoNewLine|Completed):?') {
+                    $o[$Matches[1]] = $true
+                } elseif ($arr[$i] -match '^-(Activity|Status|PercentComplete):?' -and ($i+1) -lt $arr.Length) {
+                    $o[$Matches[1]] = $arr[$i+1] ; $i+=1
+                } elseif ($arr[$i] -match '^-ForegroundColor:?' -and ($i+1) -lt $arr.Length) {
                     $o['Color'] = $arr[$i+1] ; $i+=1
                 } else {
                     $a += $arr[$i]
                 }
             }
-            Write-Log $V_NORMAL @a @o
+            if ($a[0] -eq 'Write-Progress') {
+                $a = $a[1..[Math]::Max(1, $a.Count-1)]
+                Write-Progress @a @o
+            } else {
+                Write-Log $V_NORMAL @a @o
+            }
         }
     }
 }
@@ -670,8 +710,9 @@ function main
         # If there are packages that require elevation run elevated PS and setup client-server mode
         if ((IsRequiredElevatedPS $ordered_list)  -and  -not $IsElevatedPS) {
             Write-Log $V_ALWAYS "`nSome packages require Admin privileges to install, trying to elevate privileges..."
+            $opt = if ($IsDebugMode) { "-NoExit" } else { "-NonInteractive" }
             $ps_args = @(
-                "-NonInteractive",
+                $opt,
                 "-File", $PSCommandPath,
                 $Command,
                 "-Config", ('"{0}"' -f $conf_file),
@@ -684,7 +725,9 @@ function main
                 "-Verbosity", ('"{0}"' -f $Verbosity),
                 "-WorkerMode")
             if ($DryRun) { $ps_args += "-DryRun" }
-            $ps_obj = Start-Process powershell.exe $ps_args -WorkingDirectory $PWD -Verb RunAs -PassThru -WindowStyle Hidden
+            if ($IsDebugMode) { $ps_args += "-Debug" }
+            $arg = if ($IsDebugMode) { @{} } else { @{WindowStyle='Hidden'} }
+            $ps_obj = Start-Process powershell.exe $ps_args -WorkingDirectory $PWD -Verb RunAs -PassThru @arg
             Start-Sleep -Milliseconds 500
             if (-not $ps_obj  -or  $ps_obj.HasExited) { throw "`nError: could not run this script with elevated privileges`n" }
             Start-NPipeServer
