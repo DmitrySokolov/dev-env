@@ -12,8 +12,8 @@ Add-PackageInfo `
         if ($?) { (javac -version | Select-String '\b8\.0\.265\b' -Quiet) -eq $true } else { $? }
     } `
     -InstallCmd {
-        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\Java8" ADDLOCAL=FeatureMain,FeatureEnvironment,FeatureJavaHome,FeatureOracleJavaSoft REMOVE=FeatureIcedTeaWeb,FeatureJNLPFileRunWith,FeatureJarFileRunWith /qb
+        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\Java8" ADDLOCAL=FeatureMain,FeatureEnvironment,FeatureJavaHome,FeatureOracleJavaSoft REMOVE=FeatureIcedTeaWeb,FeatureJNLPFileRunWith,FeatureJarFileRunWith /qb | Out-Default
     } `
     -UninstallCmd {
-        msiexec.exe /x $Pkg.Installer /qb
+        msiexec.exe /x $Pkg.Installer /qb | Out-Default
     }

@@ -35,12 +35,12 @@ PerformanceTweaksFSCache=Enabled
 EnableSymlinks=Enabled
 EnablePseudoConsoleSupport=Disabled
 "@
-        & $Pkg.Installer /LOADINF="$env:Temp\git.ini" /SILENT
+        & $Pkg.Installer /LOADINF="$env:Temp\git.ini" /SILENT | Out-Default
         $status = $LASTEXITCODE -eq 0
         Remove-Item -Path ("$env:Temp\git.ini") -Force 2>&1 | Out-Null
         $status
     } `
     -UninstallCmd {
         Remove-Item -Path ("$env:Temp\git.ini") -Force 2>&1 | Out-Null
-        & "$install_dir\Git\unins000.exe" /SILENT
+        & "$install_dir\Git\unins000.exe" /SILENT | Out-Default
     }

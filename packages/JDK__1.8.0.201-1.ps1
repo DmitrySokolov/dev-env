@@ -11,8 +11,8 @@ Add-PackageInfo `
         where.exe javac 2>&1 | Out-Null ; $?
     } `
     -InstallCmd {
-        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\Java8" ADDLOCAL=jdk_env_path,jdk_env_java_home /qb
+        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\Java8" ADDLOCAL=jdk_env_path,jdk_env_java_home /qb | Out-Default
     } `
     -UninstallCmd {
-        msiexec.exe /x $Pkg.Installer /qb
+        msiexec.exe /x $Pkg.Installer /qb | Out-Default
     }

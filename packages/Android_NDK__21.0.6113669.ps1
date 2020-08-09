@@ -21,14 +21,14 @@ Add-PackageInfo `
                 "extras;google;usb_driver" `
             | ForEach-Object {
                 if ($_ -match '\]\s*(\d+)%') {
-                    Write-Progress 'Installing Android NDK' `
+                    Write-CustomProgress -Activity 'Installing Android NDK' `
                         -Status ('{0}% Complete:' -f $Matches[1]) `
                         -PercentComplete $Matches[1]
                 } else {
                     $_
                 }
             } -End {
-                Write-Progress 'Installing Android NDK' -Completed
+                Write-CustomProgress -Activity 'Installing Android NDK' -Completed
             }
         Set-EnvVar ANDROID_NDK_ROOT "$sdk_dir\ndk\$ndk_ver" Machine
         Set-EnvVar ANDROID_NDK_HOST "windows-x86_64" Machine

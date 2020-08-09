@@ -8,5 +8,5 @@ Add-PackageInfo `
         $null -ne (perldoc -l XML::DOM 2>$null)
     } `
     -InstallCmd {
-        cpan XML::DOM
+        cpan XML::DOM | Out-Default
     } `

@@ -5,10 +5,10 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -DependsOn @("TortoiseHg") `
     -FindCmd {
-        Test-Path $env:USERPROFILE\mercurial.ini -Type Leaf
+        Test-Path "$env:USERPROFILE\mercurial.ini" -Type Leaf
     } `
     -InstallCmd {
-        Set-Content -Path '$env:USERPROFILE/mercurial.ini' -Value @"
+        Set-Content -Path "$env:USERPROFILE\mercurial.ini" -Value @"
 [ui]
 username = $user_info
 merge = kdiff3

@@ -12,8 +12,8 @@ Add-PackageInfo `
         if ($?) { (py -3 --version | Select-String '\b3\.8\b' -Quiet) -eq $true } else { $? }
     } `
     -InstallCmd {
-        & $Pkg.Installer /passive InstallAllUsers=1 TargetDir="$install_dir\Python3.8" PrependPath=1 CompileAll=1 Include_doc=0 Include_dev=0 Include_tcltk=0 Include_test=0 Include_launcher=1 InstallLauncherAllUsers=1
+        & $Pkg.Installer /passive InstallAllUsers=1 TargetDir="$install_dir\Python3.8" PrependPath=1 CompileAll=1 Include_doc=0 Include_dev=0 Include_tcltk=0 Include_test=0 Include_launcher=1 InstallLauncherAllUsers=1 | Out-Default
     } `
     -UninstallCmd {
-        & $Pkg.Installer /uninstall /quiet
+        & $Pkg.Installer /uninstall /quiet | Out-Default
     }

@@ -28,10 +28,10 @@ Add-PackageInfo `
         } else { $? }
     } `
     -InstallCmd {
-        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\7-Zip" /qb
+        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\7-Zip" /qb | Out-Default
         Set-EnvVar Path "$install_dir\7-Zip" Machine
     } `
     -UninstallCmd {
-        Remove-EnvVar Path (Split-Path (where.exe '7z.exe')) Machine
-        msiexec.exe /x $Pkg.Installer /qb
+        Remove-EnvVar Path (Split-Path (where.exe 7z.exe)) Machine
+        msiexec.exe /x $Pkg.Installer /qb | Out-Default
     }

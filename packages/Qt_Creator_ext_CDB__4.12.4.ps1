@@ -17,7 +17,7 @@ Add-PackageInfo `
     } `
     -InstallCmd {
         if (Test-Path $app_dir -Type Container) { Remove-Item $app_dir -Recurse -Force }
-        7z.exe x $Pkg.Installer -o"$qt_creator_dir" -bd -y
+        7z.exe x $Pkg.Installer -o"$qt_creator_dir" -bd -y | Out-Default
     } `
     -UninstallCmd {
         if (Test-Path $app_dir -Type Container) {

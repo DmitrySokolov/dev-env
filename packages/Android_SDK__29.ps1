@@ -24,14 +24,14 @@ Add-PackageInfo `
                 "extras;google;usb_driver" `
             | ForEach-Object {
                 if ($_ -match '\]\s*(\d+)%') {
-                    Write-Progress 'Installing Android SDK' `
+                    Write-CustomProgress -Activity 'Installing Android SDK' `
                         -Status ('{0}% Complete:' -f $Matches[1]) `
                         -PercentComplete $Matches[1]
                 } else {
                     $_
                 }
             } -End {
-                Write-Progress 'Installing Android SDK' -Completed
+                Write-CustomProgress -Activity 'Installing Android SDK' -Completed
             }
         Set-EnvVar ANDROID_API_VERSION $sdk_ver Machine
         Set-EnvVar ANDROID_BUILD_TOOLS_VERSION $build_tools_ver Machine

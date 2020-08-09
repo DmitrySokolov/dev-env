@@ -12,8 +12,8 @@ Add-PackageInfo `
         if ($?) { (thg version | Select-String '\b5\.5\b' -Quiet) -eq $true } else { $? }
     } `
     -InstallCmd {
-        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\TortoiseHg" ADDLOCAL=Complete /qb
+        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\TortoiseHg" ADDLOCAL=Complete /qb | Out-Default
     } `
     -UninstallCmd {
-        msiexec.exe /x $Pkg.Installer /qb
+        msiexec.exe /x $Pkg.Installer /qb | Out-Default
     }

@@ -3,7 +3,7 @@ Add-PackageInfo `
     -Description "Conan config: add default profile" `
     -Version "none" `
     -Platform "x86_64" `
-    -DependsOn @("Conan") `
+    -DependsOn @("Conan", "VS_2019|VS_build_tools_2019|Android_NDK__21.0.6113669") `
     -FindCmd {
         conan profile get settings.os default 2>&1 | Out-Null ; $?
     } `

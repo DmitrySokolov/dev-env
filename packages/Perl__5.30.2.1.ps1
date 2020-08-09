@@ -12,8 +12,8 @@ Add-PackageInfo `
         if ($?) { (perl --version | Select-String '\bv5\.30\b' -Quiet) -eq $true } else { $? }
     } `
     -InstallCmd {
-        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\Perl" /qb
+        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\Perl" /qb | Out-Default
     } `
     -UninstallCmd {
-        msiexec.exe /x $Pkg.Installer /qb
+        msiexec.exe /x $Pkg.Installer /qb | Out-Default
     }

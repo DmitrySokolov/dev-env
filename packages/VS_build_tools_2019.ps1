@@ -11,7 +11,7 @@ Add-PackageInfo `
         Test-Path "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019" -Type Container
     } `
     -InstallCmd {
-        & $Pkg.Installer --passive --wait --norestart --nocache `
+        & $Pkg.Installer --passive --wait --norestart `
             --layout "$cache_dir\vs_2019_offline_cache" `
             --add Microsoft.Component.MSBuild `
             --add Microsoft.VisualStudio.Component.CoreBuildTools `
@@ -34,8 +34,9 @@ Add-PackageInfo `
             --add Microsoft.VisualStudio.Component.Windows10SDK.18362 `
             --add Microsoft.VisualStudio.Component.VC.Llvm.Clan `
             --add Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset `
-            --add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.Llvm.Clang
+            --add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.Llvm.Clang `
+            | Out-Default
     } `
     -UninstallCmd {
-        & $Pkg.Installer uninstall --passive --wait --norestart --all
+        & $Pkg.Installer uninstall --passive --wait --norestart --all | Out-Default
     }

@@ -5,6 +5,7 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -DependsOn @("Android_SDK_Manager", "Android_SDK__29", "Android_NDK__21.0.6113669") `
     -IsMetaPackage $true `
+    -RequiresElevatedPS $true `
     -InitCmd {
         Set-Variable root_dir "$install_dir\Android" -Scope 1
         Set-Variable sdk_dir "$root_dir\Sdk" -Scope 1

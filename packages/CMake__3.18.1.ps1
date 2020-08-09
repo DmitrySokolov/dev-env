@@ -12,8 +12,8 @@ Add-PackageInfo `
         if ($?) { (cmake --version | Select-String '\b3\.18\.1\b' -Quiet) -eq $true } else { $? }
     } `
     -InstallCmd {
-        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\CMake" ADD_CMAKE_TO_PATH=System /qb
+        msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\CMake" ADD_CMAKE_TO_PATH=System /qb | Out-Default
     } `
     -UninstallCmd {
-        msiexec.exe /x $Pkg.Installer /qb
+        msiexec.exe /x $Pkg.Installer /qb | Out-Default
     }

@@ -5,7 +5,7 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -DependsOn @("Git") `
     -FindCmd {
-        Test-Path $env:USERPROFILE\.gitconfig -Type Leaf
+        Test-Path "$env:USERPROFILE\.gitconfig" -Type Leaf
     } `
     -InstallCmd {
         git config --global user.name  "$user_name"
