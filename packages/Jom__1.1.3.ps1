@@ -9,13 +9,15 @@ Add-PackageInfo `
     -RequiresElevatedPS $true `
     -FindCmd {
         where.exe jom 2>&1 | Out-Null
-        if ($?) { (jom /version | Select-String '\b1\.1\.3\b' -Quiet) -eq $true } else { $? }
+        if (-not $? -or (jom /version | Select-String '\b1\.1\.3\b' -Quiet) -ne $true) {
+            throw 'Not found'
+        }
     } `
     -InstallCmd {
         Expand-Archive -Path $Pkg.Installer -DestinationPath "$install_dir\Jom"
         Set-EnvVar Path "$install_dir\Jom" Machine
     } `
     -UninstallCmd {
-        Remove-Item "$install_dir\Jom" -Recurse -Force
         Remove-EnvVar Path "$install_dir\Jom" Machine
+        Remove-Item "$install_dir\Jom" -Recurse -Force
     }

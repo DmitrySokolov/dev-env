@@ -9,13 +9,15 @@ Add-PackageInfo `
     -RequiresElevatedPS $true `
     -FindCmd {
         where.exe ninja 2>&1 | Out-Null
-        if ($?) { (ninja --version | Select-String '\b1\.10\b' -Quiet) -eq $true } else { $? }
+        if (-not $? -or (ninja --version | Select-String '\b1\.10\b' -Quiet) -ne $true) {
+            throw 'Not found'
+        }
     } `
     -InstallCmd {
         Expand-Archive -Path $Pkg.Installer -DestinationPath "$install_dir\Ninja"
         Set-EnvVar Path "$install_dir\Ninja" Machine
     } `
     -UninstallCmd {
-        Remove-Item "$install_dir\Ninja" -Recurse -Force
         Remove-EnvVar Path "$install_dir\Ninja" Machine
+        Remove-Item "$install_dir\Ninja" -Recurse -Force
     }

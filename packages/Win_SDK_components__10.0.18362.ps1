@@ -10,22 +10,28 @@ Add-PackageInfo `
         Set-Variable reg_prop 'WindowsDebuggersRoot10' -Scope 1
     } `
     -FindCmd {
-        $obj = Get-Item $reg_key
-        $null -ne $obj  -and  $obj.Property -contains $reg_prop
+        Test-PathExists $reg_key -Throw
+        if ((Get-Item $reg_key).Property -notContains $reg_prop) {
+            throw 'Not found'
+        }
     } `
     -InstallCmd {
-        $win_sdk_installer = (Get-Package `
+        $pkg = Get-Package `
             | Where-Object Name -match 'Windows Software Development Kit' `
-            | Where-Object Version -match ('\b'+ $Pkg.Version +'\b')
-            ).Metadata.BundleCachePath
+            | Where-Object Version -match '\.18362\.'
+        if ($null -eq $pkg) { throw 'Error: could not find WinSDK installed' }
+        $win_sdk_installer = $pkg.Metadata['BundleCachePath']
         & $win_sdk_installer /features OptionId.WindowsDesktopDebuggers /quiet /norestart /ceip off | Out-Default
+        if (-not $?) { throw 'Error detected' }
         Set-EnvVar Path (Join-Path (Get-ItemPropertyValue $reg_key -Name $reg_prop) x64) Machine
     } `
     -UninstallCmd {
-        $win_sdk_installer = (Get-Package `
-            | Where-Object Name -match 'Windows Software Development Kit' `
-            | Where-Object Version -match ('\b'+ $Pkg.Version +'\b') `
-            ).Metadata.BundleCachePath
-        & $win_sdk_installer /uninstall /quiet /norestart | Out-Default
         Remove-EnvVar Path (Join-Path (Get-ItemPropertyValue $reg_key -Name $reg_prop) x64) Machine
+        $pkg = Get-Package `
+            | Where-Object Name -match 'Windows Software Development Kit' `
+            | Where-Object Version -match '\.18362\.'
+        if ($null -eq $pkg) { throw 'Error: could not find WinSDK installed' }
+        $win_sdk_installer = $pkg.Metadata['BundleCachePath']
+        & $win_sdk_installer /uninstall /quiet /norestart | Out-Default
+        if (-not $?) { throw 'Error detected' }
     }

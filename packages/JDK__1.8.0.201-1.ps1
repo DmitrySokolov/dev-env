@@ -8,11 +8,15 @@ Add-PackageInfo `
     -DependsOn @("Env_config") `
     -RequiresElevatedPS $true `
     -FindCmd {
-        where.exe javac 2>&1 | Out-Null ; $?
+        if (-not $? -or (javac -version 2>&1 | Select-String '\b8\.0_201\b' -Quiet) -ne $true) {
+            throw 'Not found'
+        }
     } `
     -InstallCmd {
         msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\Java8" ADDLOCAL=jdk_env_path,jdk_env_java_home /qb | Out-Default
+        if (-not $?) { throw 'Error detected' }
     } `
     -UninstallCmd {
         msiexec.exe /x $Pkg.Installer /qb | Out-Default
+        if (-not $?) { throw 'Error detected' }
     }

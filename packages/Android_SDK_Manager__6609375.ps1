@@ -15,7 +15,7 @@ Add-PackageInfo `
         Set-Variable sdk_manager "$sdk_dir\cmdline-tools\latest\bin\sdkmanager.bat" -Scope 1
     } `
     -FindCmd {
-        Test-Path $sdk_manager
+        Test-PathExists $sdk_manager -Throw
     } `
     -InstallCmd {
         if (Test-Path $sdk_cmdlinetools_dir -Type Container) {

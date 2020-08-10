@@ -4,7 +4,7 @@ Add-PackageInfo `
     -Version "none" `
     -Platform "x86_64" `
     -FindCmd {
-        Test-EnvVar HOME isDir
+        Test-EnvVar HOME isDir -Throw
     } `
     -InstallCmd {
         Set-EnvVar HOME $Env:UserProfile User

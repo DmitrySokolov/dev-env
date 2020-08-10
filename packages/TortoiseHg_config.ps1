@@ -5,7 +5,7 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -DependsOn @("TortoiseHg") `
     -FindCmd {
-        Test-Path "$env:USERPROFILE\mercurial.ini" -Type Leaf
+        Test-PathExists "$env:USERPROFILE\mercurial.ini" -Type Leaf -Throw
     } `
     -InstallCmd {
         Set-Content -Path "$env:USERPROFILE\mercurial.ini" -Value @"

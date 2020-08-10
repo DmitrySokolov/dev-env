@@ -13,7 +13,7 @@ Add-PackageInfo `
         Set-Variable sdk_ver "android-29" -Scope 1
     } `
     -FindCmd {
-        Test-Path "$sdk_dir\platforms\$sdk_ver" -Type Container
+        Test-PathExists "$sdk_dir\platforms\$sdk_ver" -Type Container -Throw
     } `
     -InstallCmd {
         Write-Output yes `
@@ -33,6 +33,7 @@ Add-PackageInfo `
             } -End {
                 Write-CustomProgress -Activity 'Installing Android SDK' -Completed
             }
+        if (-not $?) { throw 'Error detected' }
         Set-EnvVar ANDROID_API_VERSION $sdk_ver Machine
         Set-EnvVar ANDROID_BUILD_TOOLS_VERSION $build_tools_ver Machine
     } `

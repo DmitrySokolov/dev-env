@@ -4,15 +4,15 @@ Add-PackageInfo `
     -Version "none" `
     -Platform "x86_64" `
     -Url "https://download.visualstudio.microsoft.com/download/pr/584a5fcf-dd07-4c36-add9-620e858c9a35/d7fe90b28d868706552a6d98ab8c8753e399dfa95753a1281ff388b691ab5465/vs_Community.exe" `
-    -FileName "from_url" `
+    -FileName "vs_2019_offline_cache\vs_Community.exe" `
     -DependsOn @("Env_config") `
     -RequiresElevatedPS $true `
     -FindCmd {
-        Test-Path "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019" -Type Container
+        Test-PathExists "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019" -Throw
     } `
     -InstallCmd {
         & $Pkg.Installer --passive --wait --norestart `
-            --layout "$cache_dir\vs_2019_offline_cache" `
+            --addProductLang en-US `
             --add Microsoft.Component.MSBuild `
             --add Microsoft.VisualStudio.Component.IntelliCode `
             --add Microsoft.VisualStudio.Component.Roslyn.Compiler `
@@ -34,12 +34,14 @@ Add-PackageInfo `
             --add Microsoft.VisualStudio.Component.VC.v141.MFC `
             --add Microsoft.VisualStudio.Component.Windows10SDK `
             --add Microsoft.VisualStudio.Component.Windows10SDK.18362 `
-            --add Microsoft.VisualStudio.Component.VC.Llvm.Clan `
+            --add Microsoft.VisualStudio.Component.VC.Llvm.Clang `
             --add Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset `
             --add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.Llvm.Clang `
             --add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.Core `
             | Out-Default
+        if (-not $?) { throw 'Error detected' }
     } `
     -UninstallCmd {
         & $Pkg.Installer uninstall --passive --wait --norestart --all | Out-Default
+        if (-not $?) { throw 'Error detected' }
     }

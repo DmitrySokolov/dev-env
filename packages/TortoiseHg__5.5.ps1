@@ -9,11 +9,15 @@ Add-PackageInfo `
     -RequiresElevatedPS $true `
     -FindCmd {
         where.exe thg 2>&1 | Out-Null
-        if ($?) { (thg version | Select-String '\b5\.5\b' -Quiet) -eq $true } else { $? }
+        if (-not $? -or (thg version | Select-String '\b5\.5\D' -Quiet) -ne $true) {
+            throw 'Not found'
+        }
     } `
     -InstallCmd {
         msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\TortoiseHg" ADDLOCAL=Complete /qb | Out-Default
+        if (-not $?) { throw 'Error detected' }
     } `
     -UninstallCmd {
         msiexec.exe /x $Pkg.Installer /qb | Out-Default
+        if (-not $?) { throw 'Error detected' }
     }

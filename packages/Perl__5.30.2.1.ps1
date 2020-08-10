@@ -9,11 +9,15 @@ Add-PackageInfo `
     -RequiresElevatedPS $true `
     -FindCmd {
         where.exe py 2>&1 | Out-Null
-        if ($?) { (perl --version | Select-String '\bv5\.30\b' -Quiet) -eq $true } else { $? }
+        if (-not $? -or (perl --version | Select-String '\bv5\.30\b' -Quiet) -ne $true) {
+            throw 'Not found'
+        }
     } `
     -InstallCmd {
         msiexec.exe /i $Pkg.Installer INSTALLDIR="$install_dir\Perl" /qb | Out-Default
+        if (-not $?) { throw 'Error detected' }
     } `
     -UninstallCmd {
         msiexec.exe /x $Pkg.Installer /qb | Out-Default
+        if (-not $?) { throw 'Error detected' }
     }

@@ -9,7 +9,9 @@ Add-PackageInfo `
     -RequiresElevatedPS $true `
     -FindCmd {
         where.exe git 2>&1 | Out-Null
-        if ($?) { (git --version | Select-String '\b2\.28\b' -Quiet) -eq $true } else { $? }
+        if (-not $? -or (git --version | Select-String '\b2\.28\b' -Quiet) -ne $true) {
+            throw 'Not found'
+        }
     } `
     -InstallCmd {
         Set-Content -Path "$env:Temp\git.ini" -Value @"
@@ -36,11 +38,14 @@ EnableSymlinks=Enabled
 EnablePseudoConsoleSupport=Disabled
 "@
         & $Pkg.Installer /LOADINF="$env:Temp\git.ini" /SILENT | Out-Default
-        $status = $LASTEXITCODE -eq 0
-        Remove-Item -Path ("$env:Temp\git.ini") -Force 2>&1 | Out-Null
-        $status
+        $success = $?
+        Remove-Item -Path "$env:Temp\git.ini" -Force 2>&1 | Out-Null
+        if (-not $success) { throw 'Error detected' }
     } `
     -UninstallCmd {
-        Remove-Item -Path ("$env:Temp\git.ini") -Force 2>&1 | Out-Null
+        if (Test-Path "$env:Temp\git.ini") {
+            Remove-Item -Path "$env:Temp\git.ini" -Force 2>&1 | Out-Null
+        }
         & "$install_dir\Git\unins000.exe" /SILENT | Out-Default
+        if (-not $?) { throw 'Error detected' }
     }

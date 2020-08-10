@@ -12,7 +12,7 @@ Add-PackageInfo `
         Set-Variable ndk_ver "21.0.6113669" -Scope 1
     } `
     -FindCmd {
-        Test-Path "$sdk_dir\ndk\$ndk_ver" -Type Container
+        Test-PathExists "$sdk_dir\ndk\$ndk_ver" -Type Container -Throw
     } `
     -InstallCmd {
         Write-Output yes `
@@ -30,13 +30,14 @@ Add-PackageInfo `
             } -End {
                 Write-CustomProgress -Activity 'Installing Android NDK' -Completed
             }
+        if (-not $?) { throw 'Error detected' }
         Set-EnvVar ANDROID_NDK_ROOT "$sdk_dir\ndk\$ndk_ver" Machine
         Set-EnvVar ANDROID_NDK_HOST "windows-x86_64" Machine
     } `
     -UninstallCmd {
+        Remove-EnvVar ANDROID_NDK_ROOT Machine
+        Remove-EnvVar ANDROID_NDK_HOST Machine
         if (Test-Path "$sdk_dir\ndk\$ndk_ver" -Type Container) {
             Remove-Path "$sdk_dir\ndk\$ndk_ver" -Recurse -Force
         }
-        Remove-EnvVar ANDROID_NDK_ROOT Machine
-        Remove-EnvVar ANDROID_NDK_HOST Machine
     }

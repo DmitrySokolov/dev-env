@@ -9,11 +9,15 @@ Add-PackageInfo `
     -RequiresElevatedPS $true `
     -FindCmd {
         where.exe py 2>&1 | Out-Null
-        if ($?) { (py -3 --version | Select-String '\b3\.8\b' -Quiet) -eq $true } else { $? }
+        if (-not $? -or (py -3 --version | Select-String '\b3\.8\b' -Quiet) -ne $true) {
+            throw 'Not found'
+        }
     } `
     -InstallCmd {
         & $Pkg.Installer /passive InstallAllUsers=1 TargetDir="$install_dir\Python3.8" PrependPath=1 CompileAll=1 Include_doc=0 Include_dev=0 Include_tcltk=0 Include_test=0 Include_launcher=1 InstallLauncherAllUsers=1 | Out-Default
+        if (-not $?) { throw 'Error detected' }
     } `
     -UninstallCmd {
         & $Pkg.Installer /uninstall /quiet | Out-Default
+        if (-not $?) { throw 'Error detected' }
     }

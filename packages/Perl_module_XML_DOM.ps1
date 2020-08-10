@@ -5,8 +5,11 @@ Add-PackageInfo `
     -Platform "x86_64" `
     -DependsOn @("Perl") `
     -FindCmd {
-        $null -ne (perldoc -l XML::DOM 2>$null)
+        if ($null -eq (perldoc -l XML::DOM 2>$null)) {
+            throw 'Not found'
+        }
     } `
     -InstallCmd {
         cpan XML::DOM | Out-Default
-    } `
+        if (-not $?) { throw 'Error detected' }
+    }
