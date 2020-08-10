@@ -60,13 +60,13 @@
     [string] $UserInfo = '',
     [switch] $DryRun = $false,
     [int]    $Verbosity = 1,
-    [switch] $WorkerMode = $false
+    [switch] $WorkerMode = $false,
+    [switch] $DebugMode = $false
 )
 
 
 $ScriptDir = Split-Path $MyInvocation.MyCommand.Source -Parent
 
-$IsDebugMode = $PSBoundParameters.Debug
 $IsElevatedPS = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 $V_ALWAYS = 0
@@ -117,7 +117,7 @@ function Invoke-Cmd
     [CmdletBinding(PositionalBinding=$false)] param (
         [Parameter(Position=0)][scriptblock] $Cmd,
         [scriptblock] $Check = $null,
-        [string] $ErrorMsg = "`nFailed!`n`n{0}",
+        [string] $ErrorMsg = "`nFailed!",
         [switch] $GetOutput = $false,
         [switch] $NoEcho = $false
     )
@@ -126,12 +126,20 @@ function Invoke-Cmd
         Write-Log $V_NORMAL "PS >  $cmd_`n"
     }
     if (-not $DryRun) {
-        $r = & $Cmd 2>&1 `
-            | ForEach-Object { if (-not $NoEcho) {Write-Log $V_NORMAL $_} ; Write-Output $_ } `
-            | Out-String
-        $failed_ = -not $?
-        if ($Check -is [scriptblock]) { $failed_ = -not (& $Check) }
-        if ($failed_) { throw ($ErrorMsg -f $r) }
+        $failed_ = $null
+        try {
+            $r = & $Cmd 2>&1 | ForEach-Object {
+                if (-not $NoEcho) { Write-Log $V_NORMAL $_ }
+                Write-Output $_
+            } | Out-String
+        }
+        catch {
+            $failed_ = $true
+            Write-Log $V_ALWAYS $Error[0].ToString() -Color Red
+        }
+        if ($null -eq $failed_  -and  $Check -is [scriptblock]) { $failed_ = -not (& $Check) }
+        if ($null -eq $failed_) { $failed_ = $false }
+        if ($failed_) { throw $ErrorMsg }
         if ($GetOutput) { return $r }
     }
     if ($GetOutput) { return '' }
@@ -190,22 +198,60 @@ function Remove-EnvVar
 }
 
 
+function Test-PathExists
+{
+    [CmdletBinding()] param (
+        [Parameter(Mandatory=$true)][string] $Path,
+        [Microsoft.PowerShell.Commands.TestPathType] $Type = [Microsoft.PowerShell.Commands.TestPathType]::Any,
+        [switch] $Throw
+    )
+    if (Test-Path $Path -Type:$Type) { return $true }
+    if ($Throw) { throw 'Not found' }
+    return $false
+}
+
+
+function Test-Match
+{
+    [CmdletBinding()] param (
+        [Parameter(Mandatory=$true)][string] $Value,
+        [Parameter(Mandatory=$true)][string] $Pattern,
+        [switch] $Match,
+        [switch] $NotMatch,
+        [switch] $Throw
+    )
+    $success = if ($Match) {
+        $Value -match $Pattern
+    } elseif ($NotMatch) {
+        $Value -notMatch $Pattern
+    } else {
+        throw 'Test-Match error: either -Match, or -NotMatch should be specified'
+    }
+    if ($Throw -and -not $success) { throw 'Test-Match failed' }
+    return $success
+}
+
+
 function Test-EnvVar
 {
     [CmdletBinding()] param (
         [Parameter(Mandatory=$true)][string] $Name,
         [string] $Kind = '',
-        [string] $Value = ''
+        [string] $Value = '',
+        [switch] $Throw
     )
-    if (-not (Test-Path env:$Name)) { return $false }
-    $v = [Environment]::GetEnvironmentVariable($Name)
-    switch ($Kind) {
-        'isFile'   { return (Test-Path $v -Type Leaf) }
-        'isDir'    { return (Test-Path $v -Type Container) }
-        'match'    { return ($v -match $Value) }
-        'notMatch' { return ($v -notMatch $Value) }
+    if (Test-Path env:$Name) {
+        $v = [Environment]::GetEnvironmentVariable($Name)
+        switch ($Kind) {
+            'isFile'   { return (Test-PathExists $v -Type:Leaf -Throw:$Throw) }
+            'isDir'    { return (Test-PathExists $v -Type:Container -Throw:$Throw) }
+            'match'    { return (Test-Match $v -Match $Value -Throw:$Throw) }
+            'notMatch' { return (Test-Match $v -NotMatch $Value -Throw:$Throw) }
+        }
+        throw "Test-EnvVar error: unknown -Kind '$Kind'"
     }
-    return $true
+    if ($Throw) { throw 'Not found' }
+    return $false
 }
 
 
@@ -219,6 +265,25 @@ function Update-Environment
             } ; $_
         } | Set-Content -Path { "Env:$($_.Name)" }
     }
+}
+
+
+function New-FileShortcut
+{
+    [CmdletBinding()] param (
+        [Parameter(Mandatory=$true)][string] $ShortcutFile,
+        [Parameter(Mandatory=$true)][string] $TargetPath,
+        [string] $Arguments = $null,
+        [string] $Description = $null,
+        [string] $WorkingDir = $null
+    )
+    New-Item -ItemType Directory -Path (Split-Path $ShortcutFile)
+    $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut($ShortcutFile)
+    $lnk.TargetPath = $TargetPath
+    if ($null -ne $Arguments) { $lnk.Arguments = $Arguments }
+    if ($null -ne $Description) { $lnk.Description = $Description }
+    if ($null -ne $WorkingDir) { $lnk.WorkingDirectory = $WorkingDir }
+    $lnk.Save()
 }
 
 
@@ -401,10 +466,13 @@ function Install-Pkg ([hashtable] $pkg)
     # Run FindCmd
     if ($pkg.FindCmd -is [scriptblock]) {
         Write-Log $V_NORMAL "-- Searching for installed $full_descr"
-        $success = & $pkg.FindCmd
-        if ($success) {
+        try {
+            & $pkg.FindCmd | Out-Null
             Write-Log $V_NORMAL "-- Found $full_descr installed"
             return
+        }
+        catch {
+            $Error.RemoveAt(0)
         }
         Write-Log $V_NORMAL "-- Not installed"
     }
@@ -472,7 +540,7 @@ function Start-NPipeClient ($pipe_name = "dev_env_pipe")
 
 function worker_debug_output
 {
-    if ($IsDebugMode -and $WorkerMode) { Write-Host @args }
+    if ($DebugMode -and $WorkerMode) { Write-Host @args }
 }
 
 
@@ -574,8 +642,15 @@ function Send-CommandOutput ($text)
 {
     Write-Pipe 'Output:start'
     if ($text -is [scriptblock]) {
-        # Just execute a command, output is already redirected
-        & $text
+        try {
+            # Just execute a command, output is already redirected
+            & $text
+        }
+        catch {
+            Write-Log $V_ALWAYS $Error[0].ToString() -Color Red
+            Write-Pipe 'Output:error'
+            return
+        }
     } else {
         Write-Pipe $text
     }
@@ -596,6 +671,8 @@ function Receive-CommandOutput
             $done = $true
         } elseif ('Output:finish' -eq $line) {
             $done = $true
+        } elseif ('Output:error' -eq $line) {
+            throw "`nExiting..."
         } else {
             $a = @() ; $o = @{} ; $arr = @($line)
             for ($i=0; $i -lt $arr.Length; $i+=1) {
@@ -710,7 +787,7 @@ function main
         # If there are packages that require elevation run elevated PS and setup client-server mode
         if ((IsRequiredElevatedPS $ordered_list)  -and  -not $IsElevatedPS) {
             Write-Log $V_ALWAYS "`nSome packages require Admin privileges to install, trying to elevate privileges..."
-            $opt = if ($IsDebugMode) { "-NoExit" } else { "-NonInteractive" }
+            $opt = if ($DebugMode) { "-NoExit" } else { "-NonInteractive" }
             $ps_args = @(
                 $opt,
                 "-File", $PSCommandPath,
@@ -725,8 +802,8 @@ function main
                 "-Verbosity", ('"{0}"' -f $Verbosity),
                 "-WorkerMode")
             if ($DryRun) { $ps_args += "-DryRun" }
-            if ($IsDebugMode) { $ps_args += "-Debug" }
-            $arg = if ($IsDebugMode) { @{} } else { @{WindowStyle='Hidden'} }
+            if ($DebugMode) { $ps_args += "-DebugMode" }
+            $arg = if ($DebugMode) { @{} } else { @{WindowStyle='Hidden'} }
             $ps_obj = Start-Process powershell.exe $ps_args -WorkingDirectory $PWD -Verb RunAs -PassThru @arg
             Start-Sleep -Milliseconds 500
             if (-not $ps_obj  -or  $ps_obj.HasExited) { throw "`nError: could not run this script with elevated privileges`n" }
