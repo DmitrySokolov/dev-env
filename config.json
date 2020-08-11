@@ -20,6 +20,8 @@
             "Env_config"],
         "common": [
             "Python__3", "Conan", "Conan_config", "TortoiseHg", "TortoiseHg_config",
-            "Git", "Git_config"]
+            "Git", "Git_config"],
+        "qt": [
+            "Qt_Creator", "Qt_Creator_ext_CDB"]
     }
 }
