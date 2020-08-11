@@ -569,17 +569,8 @@ function Write-Pipe
             $Script:PipeWriter.WriteLine($s)
             worker_debug_output "  Value: $s"
         }
-        'Object[]' {
-            $Script:PipeWriter.WriteLine($var.Length)
-            worker_debug_output "  Length: $($var.Length)`n  Values:"
-            foreach ($v in $var) {
-                $s = ($v -replace '\r','`r') -replace '\n','`n'
-                $Script:PipeWriter.WriteLine($s)
-                worker_debug_output "  *** $s"
-            }
-        }
         Default {
-            $s = ($var -replace '\r','`r') -replace '\n','`n'
+            $s = $var | ConvertTo-Json -Depth 10 -Compress
             $Script:PipeWriter.WriteLine($s)
             worker_debug_output "  Value: $s"
         }
@@ -592,6 +583,9 @@ function Read-Pipe
     $type = $Script:PipeReader.ReadLine()
     $var = $Script:PipeReader.ReadLine()
     switch ($type) {
+        $null {
+            return $null
+        }
         'Hashtable' {
             $h = @{}
             (ConvertFrom-Json $var).PSObject.Properties | ForEach-Object {
@@ -605,19 +599,8 @@ function Read-Pipe
             }
             return $h
         }
-        'Object[]' {
-            $len = [int]$var
-            $var = @()
-            for ($i=0; $i -lt $len; $i+=1) {
-                $var += ($Script:PipeReader.ReadLine() -replace '`n',"`n") -replace '`r',"`r"
-            }
-            return $var
-        }
-        $null {
-            return $null
-        }
         Default {
-            return ((($var -replace '`n',"`n") -replace '`r',"`r") -as $type)
+            return ConvertFrom-Json $var
         }
     }
 }
