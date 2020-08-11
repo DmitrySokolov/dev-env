@@ -3,7 +3,6 @@ Add-PackageInfo `
     -Description "Mercurial VCS config" `
     -Version "none" `
     -Platform "x86_64" `
-    -DependsOn @("TortoiseHg") `
     -FindCmd {
         Test-PathExists "$env:USERPROFILE\mercurial.ini" -Type Leaf -Throw
     } `
