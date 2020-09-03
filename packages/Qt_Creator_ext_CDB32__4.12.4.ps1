@@ -1,23 +1,22 @@
 Add-PackageInfo `
-    -Name "Qt_Creator_ext_CDB" `
-    -Description "Qt Creator extension: CDB support v{0}" `
+    -Name "Qt_Creator_ext_CDB32" `
+    -Description "Qt Creator extension: CDB 32-bit support v{0}" `
     -Version "4.12.4" `
     -Platform "x86_64" `
-    -Url "http://qt-mirror.dannhauer.de/official_releases/qtcreator/4.12/4.12.4/installer_source/windows_msvc2017_x64/qtcreatorcdbext.7z" `
-    -FileName "qtcreatorcdbext_4.12.4.7z" `
+    -Url "https://mirrors.dotsrc.org/qtproject/online/qtsdkrepository/windows_x86/desktop/tools_qtcreator/qt.tools.qtcreatorcdbext/4.12.4-0qtcreatorcdbext32.7z" `
+    -FileName "from_url" `
     -DependsOn @("Env_config", "7_Zip", "Qt_Creator__4.12.4") `
     -InitCmd {
         Set-Variable root_dir "$install_dir\Qt" -Scope 1
-        Set-Variable qt_creator_dir "$install_dir\Qt\QtCreator" -Scope 1
-        Set-Variable app_dir "$install_dir\Qt\QtCreator\lib\qtcreatorcdbext64" -Scope 1
-        Set-Variable app "$install_dir\Qt\QtCreator\lib\qtcreatorcdbext64\qtcreatorcdbext.dll" -Scope 1
+        Set-Variable qt_creator_dir "$root_dir\Tools\QtCreator" -Scope 1
+        Set-Variable app_dir "$qt_creator_dir\lib\qtcreatorcdbext32" -Scope 1
     } `
     -FindCmd {
         throw 'Not found'
     } `
     -InstallCmd {
         if (Test-Path $app_dir -Type Container) { Remove-Item $app_dir -Recurse -Force }
-        7z.exe x $Pkg.Installer -o"$qt_creator_dir" -bd -y | Out-Default
+        7z.exe x $Pkg.Installer -o"$root_dir" -bd -y | Out-Default
         if (-not $?) { throw 'Error detected' }
     } `
     -UninstallCmd {

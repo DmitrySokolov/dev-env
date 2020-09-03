@@ -13,6 +13,6 @@ Add-PackageInfo `
         if (-not $?) { throw 'Error detected' }
     } `
     -UninstallCmd {
-        pip-autoremove conan -y | Out-Default
+        pip-autoremove conan --yes | Out-Default
         if (-not $?) { throw 'Error detected' }
     }

@@ -1,9 +1,9 @@
 Add-PackageInfo `
     -Name "Qt_Creator" `
     -Description "Qt Creator v{0}" `
-    -Version "4.12.4" `
+    -Version "4.13.0" `
     -Platform "x86_64" `
-    -Url "https://mirrors.dotsrc.org/qtproject/online/qtsdkrepository/windows_x86/desktop/tools_qtcreator/qt.tools.qtcreator/4.12.4-0qtcreator.7z" `
+    -Url "https://mirrors.dotsrc.org/qtproject/online/qtsdkrepository/windows_x86/desktop/tools_qtcreator/qt.tools.qtcreator/4.13.0-0qtcreator.7z" `
     -FileName "from_url" `
     -DependsOn @("Env_config", "7_Zip") `
     -InitCmd {
@@ -15,7 +15,7 @@ Add-PackageInfo `
     } `
     -FindCmd {
         Test-PathExists $app -Throw
-        if ('4.12.4' -ne [System.Diagnostics.FileVersionInfo]::GetVersionInfo($app).FileVersion) {
+        if ('4.13.0' -ne [System.Diagnostics.FileVersionInfo]::GetVersionInfo($app).FileVersion) {
             throw 'Not found'
         }
     } `

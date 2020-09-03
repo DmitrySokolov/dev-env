@@ -38,6 +38,8 @@
     Optional, user name ("$user_name" variable for "config.json"). Default: "build.bot".
 .PARAMETER UserInfo
     Optional, user info ("$user_info" variable for "config.json"). Default: "Build Bot <build.bot@example.org>".
+.PARAMETER Credential
+    Optional, credential that will be available in packages. If $null is passed, password will be acquired using Read-Host.
 .PARAMETER DryRun
     Optional, flag that controls the actual execution of commands, default: $false.
 .PARAMETER Verbosity
@@ -58,6 +60,7 @@
     [string] $CacheDir = '',
     [string] $UserName = '',
     [string] $UserInfo = '',
+    [pscredential] $Credential = $null,
     [switch] $DryRun = $false,
     [int]    $Verbosity = 1,
     [switch] $WorkerMode = $false,
@@ -118,7 +121,7 @@ function Invoke-Cmd
         [Parameter(Position=0)][scriptblock] $Cmd,
         [scriptblock] $Check = $null,
         [string] $ErrorMsg = "`nFailed!",
-        [switch] $GetOutput = $false,
+        [switch] $ReturnOutput = $false,
         [switch] $NoEcho = $false
     )
     if (-not $NoEcho) {
@@ -126,23 +129,22 @@ function Invoke-Cmd
         Write-Log $V_NORMAL "PS >  $cmd_`n"
     }
     if (-not $DryRun) {
-        $failed_ = $null
+        $failed_ = $false
         try {
-            $r = & $Cmd 2>&1 | ForEach-Object {
+            $output = & $Cmd 2>&1 | ForEach-Object {
                 if (-not $NoEcho) { Write-Log $V_NORMAL $_ }
                 Write-Output $_
             } | Out-String
+            if ($Check -is [scriptblock]) { $failed_ = -not (& $Check) }
         }
         catch {
             $failed_ = $true
             Write-Log $V_ALWAYS $Error[0].ToString() -Color Red
         }
-        if ($null -eq $failed_  -and  $Check -is [scriptblock]) { $failed_ = -not (& $Check) }
-        if ($null -eq $failed_) { $failed_ = $false }
         if ($failed_) { throw $ErrorMsg }
-        if ($GetOutput) { return $r }
+        if ($ReturnOutput) { return $output }
     }
-    if ($GetOutput) { return '' }
+    if ($ReturnOutput) { return '' }
 }
 
 
@@ -754,6 +756,14 @@ function main
         Write-Log $V_DETAIL "-- User name    : $user_name"
         Write-Log $V_DETAIL "-- User info    : $user_info"
         Write-Log $V_DETAIL ""
+
+        if ($Script:PSBoundParameters.ContainsKey('Credential') `
+                -and $null -eq $Script:PSBoundParameters.Credential) {
+            $passw = Read-Host "Enter password" -AsSecureString
+            $Script:PSBoundParameters.Credential = [pscredential]::new($user_name, $passw)
+            $passw = $null
+            Write-Log $V_DETAIL ""
+        }
 
         # Read packages info
         Get-ChildItem "$packages_dir\*.ps1" -Recurse -Force `

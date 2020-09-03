@@ -19,9 +19,16 @@
         "config": [
             "Env_config"],
         "common": [
-            "Python__3", "Conan", "Conan_config", "TortoiseHg", "TortoiseHg_config",
+            "Python__3", "kit:conan", "kit:hg", "kit:git"],
+        "hg": [
+            "TortoiseHg", "TortoiseHg_config"],
+        "git": [
             "Git", "Git_config"],
+        "conan": [
+            "Conan", "Conan_config"],
         "qt": [
-            "Qt_Creator", "Qt_Creator_ext_CDB"]
+            "Qt_Creator", "Qt_Creator_ext_Jom", "Qt_Creator_ext_sdktool",
+            "Qt_Creator_ext_CDB32", "Qt_Creator_ext_CDB64",
+            "Qt_Creator_ext_wininterrupt32", "Qt_Creator_ext_wininterrupt64"]
     }
 }

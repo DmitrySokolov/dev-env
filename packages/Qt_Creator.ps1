@@ -3,5 +3,5 @@ Add-PackageInfo `
     -Description "Qt Creator [latest]" `
     -Version "none" `
     -Platform "x86_64" `
-    -DependsOn @("Qt_Creator__4.12.4") `
+    -DependsOn @("Qt_Creator__4.13.0") `
     -IsMetaPackage $true
