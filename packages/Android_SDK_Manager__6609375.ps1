@@ -11,19 +11,32 @@ Add-PackageInfo `
         Set-Variable root_dir "$install_dir\Android" -Scope 1
         Set-Variable sdk_dir "$root_dir\Sdk" -Scope 1
         Set-Variable sdk_cmdlinetools_dir "$sdk_dir\cmdline-tools" -Scope 1
-        Set-Variable sdk_manager_dir "$sdk_dir\cmdline-tools\latest" -Scope 1
-        Set-Variable sdk_manager "$sdk_dir\cmdline-tools\latest\bin\sdkmanager.bat" -Scope 1
+        Set-Variable sdk_standalone_manager_dir "$sdk_cmdlinetools_dir\tools" -Scope 1
+        Set-Variable sdk_manager "$sdk_standalone_manager_dir\bin\sdkmanager.bat" -Scope 1
     } `
     -FindCmd {
         Test-PathExists $sdk_manager -Throw
     } `
     -InstallCmd {
-        if (Test-Path $sdk_cmdlinetools_dir -Type Container) {
-            Remove-Item $sdk_cmdlinetools_dir -Recurse -Force
-        }
-        Expand-Archive -Path $Pkg.Installer -DestinationPath $sdk_cmdlinetools_dir
-        Move-Item "$sdk_cmdlinetools_dir\tools" $sdk_manager_dir
         Set-EnvVar ANDROID_SDK_ROOT $sdk_dir Machine
+        if (-not (Test-Path $sdk_standalone_manager_dir -Type Container)) {
+            Expand-Archive -Path $Pkg.Installer -DestinationPath $sdk_cmdlinetools_dir
+        }
+        Write-Output y `
+            | & $sdk_manager `
+                "cmdline-tools;latest" `
+            | ForEach-Object {
+                if ($_ -match '\]\s*(\d+)%') {
+                    Write-CustomProgress -Activity 'Installing Android SDK Manager' `
+                        -Status ('{0}% Complete:' -f $Matches[1]) `
+                        -PercentComplete $Matches[1]
+                } else {
+                    $_
+                }
+            } -End {
+                Write-CustomProgress -Activity 'Installing Android SDK Manager' -Completed
+            }
+        Remove-Item "$sdk_standalone_manager_dir" -Recurse -Force
     } `
     -UninstallCmd {
         Remove-Item $sdk_cmdlinetools_dir -Recurse -Force

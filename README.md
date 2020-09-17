@@ -13,18 +13,21 @@ Make sure that you have already allowed the execution of PowerShell scripts, see
 Launch the following command to install, for example, the kit `common` (Python 3, Conan, TortoiseHg, Git):
 
 ```powershell
-& {param($InstallDir,$CacheDir,$Kit,$User,$Info,$Url,[switch]$RequirePassw) ; `
-$dst_dir="$InstallDir\dev-env" ; $opt=@{} ; if (-not (Test-Path $dst_dir)) { `
-if ($RequirePassw) {$passw=Read-Host "`nEnter password" -AsSecur ; `
-$opt.Credential=[pscredential]::new($User,$passw)} ; $tmp="$env:Temp\dev-env.zip" ; `
-Invoke-WebRequest $Url -Out:$tmp @opt ; Expand-Archive $tmp $dst_dir ; Remove-Item $tmp} ; `
-if ($PWD -ne $dst_dir) {Push-Location $dst_dir} ; .\dev_env.ps1 install `
--Config:.\config.json -Kit:$Kit -CacheDir:$CacheDir -UserName:$User -UserInfo:$Info @opt} `
-    -InstallDir 'C:\Dev\Tools' `
+& { param($InstallDir,$CacheDir,$Kit,$UserName,$UserInfo,$Url,[switch]$EnterPassword) ; `
+    $dst="$InstallDir\dev-env" ; $opt=@{} ; `
+    if ($EnterPassword) { Write-Host "`nUser name: $UserName" ; `
+        $psw=Read-Host "Enter password" -AsSec ; `
+        $opt.Credential=[pscredential]::new($UserName,$psw) } ; `
+    if (-not (Test-Path $dst)) { $t="$env:Temp\dev-env.zip" ; `
+        Invoke-WebRequest $Url -Out:$t @opt ; Expand-Archive $t $dst ; Remove-Item $t } ; `
+    if ($PWD -ne $dst) { Push-Location $dst } ; `
+    .\dev_env.ps1 install -Config:.\config.json -Kit:$Kit -CacheDir:$CacheDir `
+        -UserName:$UserName -UserInfo:$UserInfo @opt `
+}   -InstallDir 'C:\Dev\Tools' `
     -CacheDir "$env:USERPROFILE\Downloads" `
     -Kit 'common' `
-    -User 'Your.Name' -Info 'Your Name <your.name@example.org>' `
-    -Url 'https://github.com/DmitrySokolov/dev-env/releases/download/v1.0.1/dev-env.zip'
+    -UserName 'Your.Name' -UserInfo 'Your Name <your.name@example.org>' `
+    -Url 'https://github.com/DmitrySokolov/dev-env/releases/download/v1.1.0/dev-env.zip'
 ```
 
 
@@ -33,6 +36,7 @@ It will download and install `dev-env` scripts into the directory `C:\Dev\Tools\
 For example, to install the kit `qt` (Qt Creator):
 
 ```powershell
-.\dev_env.ps1 install -Config .\config.json -Kit 'qt' -CacheDir "$env:USERPROFILE\Downloads" `
-    -User 'Your.Name' -Info 'Your Name <your.name@example.org>'
+.\dev_env.ps1 install -Config .\config.json -Kit 'qt' `
+    -CacheDir "$env:USERPROFILE\Downloads" `
+    -UserName 'Your.Name' -UserInfo 'Your Name <your.name@example.org>'
 ```

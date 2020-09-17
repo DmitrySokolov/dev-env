@@ -8,17 +8,18 @@ Add-PackageInfo `
     -InitCmd {
         Set-Variable root_dir "$install_dir\Android" -Scope 1
         Set-Variable sdk_dir "$root_dir\Sdk" -Scope 1
-        Set-Variable sdk_manager "$sdk_dir\cmdline-tools\latest\bin\sdkmanager.bat" -Scope 1
         Set-Variable build_tools_ver "29.0.3" -Scope 1
         Set-Variable sdk_ver "android-29" -Scope 1
+        Set-Variable sdk_platform_dir "$sdk_dir\platforms\$sdk_ver" -Scope 1
+        Set-Variable sdk_manager "$sdk_dir\cmdline-tools\latest\bin\sdkmanager.bat" -Scope 1
     } `
     -FindCmd {
-        Test-PathExists "$sdk_dir\platforms\$sdk_ver" -Type Container -Throw
+        Test-PathExists "$sdk_platform_dir" -Type Container -Throw
     } `
     -InstallCmd {
-        Write-Output yes `
-            | & $sdk_manager `
+        & $sdk_manager `
                 "build-tools;$build_tools_ver" `
+                "tools" `
                 "platform-tools" `
                 "platforms;$sdk_ver" `
                 "extras;google;usb_driver" `
@@ -38,8 +39,8 @@ Add-PackageInfo `
         Set-EnvVar ANDROID_BUILD_TOOLS_VERSION $build_tools_ver Machine
     } `
     -UninstallCmd {
-        if (Test-Path "$sdk_dir\platforms\$sdk_ver" -Type Container) {
-            Remove-Path "$sdk_dir\platforms\$sdk_ver" -Recurse -Force
+        if (Test-Path "$sdk_platform_dir" -Type Container) {
+            Remove-Path "$sdk_platform_dir" -Recurse -Force
         }
         Remove-EnvVar ANDROID_API_VERSION Machine
         Remove-EnvVar ANDROID_BUILD_TOOLS_VERSION Machine

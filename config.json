@@ -9,6 +9,7 @@
         "so this will add all packages contained in the referenced kit"
     ],
     "install_dir": "C:\\Dev\\Tools",
+    "source_install_dir": "C:\\Dev\\Projects",
     "packages_dir": "$config_dir\\packages",
     "cache_dir": "$config_dir\\cache",
     "user_name": "build.bot",

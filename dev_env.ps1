@@ -30,6 +30,8 @@
     Optional, kit name(s). Default: "default".
 .PARAMETER InstallDir
     Optional, root directory to install apps. Default: "C:\Dev\Tools".
+.PARAMETER SourceInstallDir
+    Optional, root directory to install sources. Default: "C:\Dev\Projects".
 .PARAMETER PackagesDir
     Optional, directory with package info files . Default: "$script_dir\packages".
 .PARAMETER CacheDir
@@ -39,7 +41,9 @@
 .PARAMETER UserInfo
     Optional, user info ("$user_info" variable for "config.json"). Default: "Build Bot <build.bot@example.org>".
 .PARAMETER Credential
-    Optional, credential that will be available in packages. If $null is passed, password will be acquired using Read-Host.
+    Optional, credential that will be available in packages.
+.PARAMETER EnterPassword
+    Optional, if $true is passed and $Credential is $null, password will be acquired using Read-Host, default: $false.
 .PARAMETER DryRun
     Optional, flag that controls the actual execution of commands, default: $false.
 .PARAMETER Verbosity
@@ -56,11 +60,13 @@
     [string] $Config = '.\config.json',
     [string[]] $Kit = @('default'),
     [string] $InstallDir = '',
+    [string] $SourceInstallDir = '',
     [string] $PackagesDir = '',
     [string] $CacheDir = '',
     [string] $UserName = '',
     [string] $UserInfo = '',
     [pscredential] $Credential = $null,
+    [switch] $EnterPassword = $false,
     [switch] $DryRun = $false,
     [int]    $Verbosity = 1,
     [switch] $WorkerMode = $false,
@@ -317,6 +323,7 @@ function Initialize-Vars ($conf, $conf_file)
     Set-Variable packages_dir (Select-NonEmptyPath $PackagesDir (Expand-String $conf.packages_dir) -default "$ScriptDir\packages") -Scope 1
     Set-Variable cache_dir (Select-NonEmptyPath $CacheDir (Expand-String $conf.cache_dir) -default "$ScriptDir\cache") -Scope 1
     Set-Variable install_dir (Select-NonEmptyPath $InstallDir (Expand-String $conf.install_dir) -default 'C:\Dev\Tools') -Scope 1
+    Set-Variable source_install_dir (Select-NonEmptyPath $SourceInstallDir (Expand-String $conf.source_install_dir) -default 'C:\Dev\Projects') -Scope 1
     Set-Variable user_name (Select-NonEmpty $UserName (Expand-String $conf.user_name) -default 'build.bot') -Scope 1
     Set-Variable user_info (Select-NonEmpty $UserInfo (Expand-String $conf.user_info) -default 'Build Bot <build.bot@example.org>') -Scope 1
 }
@@ -747,6 +754,7 @@ function main
 
         # Init variables required for substitution
         Initialize-Vars $conf $conf_file
+        Write-Log $V_NORMAL ""
         Write-Log $V_DETAIL "Config:"
         Write-Log $V_DETAIL "-- Script dir   : $script_dir"
         Write-Log $V_DETAIL "-- Config dir   : $config_dir"
@@ -757,10 +765,10 @@ function main
         Write-Log $V_DETAIL "-- User info    : $user_info"
         Write-Log $V_DETAIL ""
 
-        if ($Script:PSBoundParameters.ContainsKey('Credential') `
-                -and $null -eq $Script:PSBoundParameters.Credential) {
+        if ($EnterPassword -and $null -eq $Credential) {
+            Write-Host "User name: $user_name"
             $passw = Read-Host "Enter password" -AsSecureString
-            $Script:PSBoundParameters.Credential = [pscredential]::new($user_name, $passw)
+            $Script:Credential = [pscredential]::new($user_name, $passw)
             $passw = $null
             Write-Log $V_DETAIL ""
         }
