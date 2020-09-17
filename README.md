@@ -27,7 +27,7 @@ Launch the following command to install, for example, the kit `common` (Python 3
     -CacheDir "$env:USERPROFILE\Downloads" `
     -Kit 'common' `
     -UserName 'Your.Name' -UserInfo 'Your Name <your.name@example.org>' `
-    -Url 'https://github.com/DmitrySokolov/dev-env/releases/download/v1.1.0/dev-env.zip'
+    -Url 'https://github.com/DmitrySokolov/dev-env/releases/download/v1.1.0/dev_env.zip'
 ```
 
 
