@@ -3,5 +3,5 @@ Add-PackageInfo `
     -Description "Ninja build tool [latest]" `
     -Version "none" `
     -Platform "x86_64" `
-    -DependsOn @("Ninja__1.10.0") `
+    -DependsOn @("Ninja__1.10.2") `
     -IsMetaPackage $true

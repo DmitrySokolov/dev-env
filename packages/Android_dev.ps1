@@ -3,7 +3,7 @@ Add-PackageInfo `
     -Description "Android dev tools, SDK, NDK" `
     -Version "none" `
     -Platform "x86_64" `
-    -DependsOn @("Android_SDK_Manager", "Android_SDK__29", "Android_NDK__21.0.6113669") `
+    -DependsOn @("Android_SDK_Manager", "Android_SDK__30", "Android_NDK__21.3.6528147") `
     -IsMetaPackage $true `
     -RequiresElevatedPS $true `
     -InitCmd {

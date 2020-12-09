@@ -29,6 +29,9 @@ Add-PackageInfo `
             --add Microsoft.VisualStudio.Component.VC.ATL `
             --add Microsoft.VisualStudio.Component.VC.ATLMFC `
             --add Microsoft.VisualStudio.Component.VC.Modules.x86.x64 `
+            --add Microsoft.VisualStudio.Component.VC.v141.x86.x64 `
+            --add Microsoft.VisualStudio.Component.VC.v141.ATL `
+            --add Microsoft.VisualStudio.Component.VC.v141.MFC `
             --add Microsoft.VisualStudio.Component.Windows10SDK `
             --add Microsoft.VisualStudio.Component.Windows10SDK.19041 `
             --add Microsoft.VisualStudio.Component.VC.Llvm.Clang `
