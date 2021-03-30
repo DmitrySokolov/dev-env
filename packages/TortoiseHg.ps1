@@ -3,5 +3,5 @@ Add-PackageInfo `
     -Description "TortoiseHg [latest]" `
     -Version "none" `
     -Platform "x86_64" `
-    -DependsOn @("TortoiseHg__5.6.1") `
+    -DependsOn @("TortoiseHg__5.7.1") `
     -IsMetaPackage $true
