@@ -18,7 +18,7 @@ Launch the following command to install, for example, the kit `common` (Python 3
     if ($EnterPassword) { Write-Host "`nUser name: $UserName" ; `
         $psw=Read-Host "Enter password" -AsSec ; `
         $opt.Credential=[pscredential]::new($UserName,$psw) } ; `
-    if (-not (Test-Path $dst)) { $t="$env:Temp\dev-env.zip" ; `
+    if (-not (Test-Path $dst)) { $t="$env:Temp\dev_env.zip" ; `
         Invoke-WebRequest $Url -Out:$t @opt ; Expand-Archive $t $dst ; Remove-Item $t } ; `
     if ($PWD -ne $dst) { Push-Location $dst } ; `
     .\dev_env.ps1 install -Config:.\config.json -Kit:$Kit -CacheDir:$CacheDir `
@@ -27,7 +27,7 @@ Launch the following command to install, for example, the kit `common` (Python 3
     -CacheDir "$env:USERPROFILE\Downloads" `
     -Kit 'common' `
     -UserName 'Your.Name' -UserInfo 'Your Name <your.name@example.org>' `
-    -Url 'https://github.com/DmitrySokolov/dev-env/releases/download/v1.1.0/dev_env.zip'
+    -Url 'https://github.com/DmitrySokolov/dev-env/releases/download/v1.2.0/dev_env-1.2.0.zip'
 ```
 
 
